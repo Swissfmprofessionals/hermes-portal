@@ -28,7 +28,56 @@
             box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
         }
     </style>
-</head>
+
+    <script>
+        // 
+        // HIER IHREN PUBLISHABLE KEY EINFÜGEN:
+        // 
+        const clerkPublishableKey = "pk_live_Y2xlcmsuc3dpc3NmbXByb2Zlc3Npb25hbHMuY2gk";
+        //
+        //
+
+        const script = document.createElement("script");
+        script.setAttribute("data-clerk-publishable-key", clerkPublishableKey);
+        script.async = true;
+        script.type = "text/javascript";
+        
+        // Dieses Script lädt von der "Frontend API" Domain, die Sie in Clerk (Phase 3 / image_f29fbe.png) 
+        // mit dem CNAME 'clerk' -> 'frontend-api.clerk.services' konfiguriert haben.
+        script.src = `https://clerk.swissfmprofessionals.ch/clerk.browser.js`;
+
+        script.onload = () => {
+            window.Clerk.load()
+                .then(() => {
+                    // Stoppe, falls die Seite in einem iFrame geladen wird (z.B. in Vercel-Previews)
+                    if (window.Clerk.handleRedirectInIframe) {
+                        window.Clerk.handleRedirectInIframe();
+                        return;
+                    }
+
+                    // Wenn der Benutzer NICHT eingeloggt ist...
+                    if (!window.Clerk.user) {
+                        
+                        // ...leite ihn zur Login-Seite weiter (die Sie als 'accounts' CNAME konfiguriert haben)
+                        // Wir hängen die aktuelle URL an, damit er nach dem Login hierher zurückkommt.
+                        const signInUrl = "https://accounts.swissfmprofessionals.ch/sign-in";
+                        const redirectUrl = encodeURIComponent(window.location.href);
+                        window.location.href = `${signInUrl}?redirect_url=${redirectUrl}`;
+                    }
+                })
+                .catch((error) => {
+                    console.error("Clerk error:", error);
+                });
+        };
+        
+        script.onerror = () => {
+             console.error("Clerk script failed to load.");
+        };
+
+        // Fügt das Script zum <head> hinzu, um die Seite zu schützen
+        document.head.appendChild(script);
+    </script>
+    </head>
 <body class="antialiased">
 
     <header class="bg-white/90 backdrop-blur-md sticky top-0 z-50 shadow-sm">
@@ -96,7 +145,7 @@
                                 </div>
                             </li>
                              <li class="flex items-center">
-                                <img src="hermes-module.jpg" alt="Icon für Module" class="h-16 w-16 mr-5 flex-shrink-0">
+                                 <img src="hermes-module.jpg" alt="Icon für Module" class="h-16 w-16 mr-5 flex-shrink-0">
                                 <div>
                                     <h4 class="font-bold text-xl mb-1">Module</h4>
                                     <p class="text-gray-600">Bündeln thematisch verwandte Aufgaben und Ergebnisse zu flexiblen Bausteinen.</p>
@@ -145,5 +194,4 @@
     </footer>
 
 </body>
-
 </html>
