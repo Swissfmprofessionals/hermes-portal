@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="de" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HERMES 2022: Szenarien Visualisierung</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #F8F5F2; color: #333; }
+        .content-card { background-color: #FFFFFF; border: 1px solid #EAEAEA; border-radius: 0.75rem; box-shadow: 0 4px 12px -1px rgba(0, 0, 0, 0.05), 0 2px 8px -1px rgba(0, 0, 0, 0.03); }
+        .relationship-item { transition: all 0.3s ease; border: 2px solid transparent; cursor: pointer; opacity: 1; word-break: break-word; hyphens: auto; text-align: center; min-height: 3.5rem; display: flex; align-items: center; justify-content: center; position: relative; }
+        .relationship-item:hover { border-color: #A5B4FC; background-color: #F5F7FF; }
+        .highlight-primary { border-color: #4F46E5 !important; background-color: #EEF2FF !important; color: #312E81; font-weight: 600; opacity: 1 !important; transform: scale(1.02); }
+        .highlight-secondary { border-color: #60A5FA; background-color: #EFF6FF; opacity: 1 !important; }
+        #explanation-content ul { list-style-type: disc; padding-left: 20px; margin-top: 8px; }
+        #explanation-content p { margin-bottom: 0.5rem; }
+        #explanation-content h3 { margin-top: 1rem; font-weight: 600; }
+        input[type="radio"]:disabled + label { color: #9ca3af; cursor: not-allowed; }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+    <div class="max-w-screen-2xl mx-auto">
+        <header class="mb-8">
+            <h1 id="main-title" class="text-3xl md:text-4xl font-bold text-indigo-800">HERMES 2022: Szenarien Visualisierung</h1>
+            <div class="mt-4 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                <div>
+                    <label for="scenario-selector" class="text-lg text-gray-700 font-medium">Szenario auswählen:</label>
+                    <select id="scenario-selector" class="bg-white border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2.5 mt-1"></select>
+                </div>
+                <div id="vorgehensweise-filter" class="flex items-center gap-4">
+                    <label class="text-lg text-gray-700 font-medium">Vorgehensweise:</label>
+                    <div class="flex gap-4 mt-1">
+                        <div>
+                            <input type="radio" id="vorgehen-klassisch" name="vorgehensweise" value="klassisch" class="h-4 w-4 border-gray-300 text-indigo-600 focus:ring-indigo-500" checked>
+                            <label for="vorgehen-klassisch" class="ml-2 text-sm font-medium text-gray-700">Klassisch</label>
+                        </div>
+                        <div>
+                            <input type="radio" id="vorgehen-agil" name="vorgehensweise" value="agil" class="h-4 w-4 border-gray-300 text-indigo-600 focus:ring-indigo-500">
+                            <label for="vorgehen-agil" class="ml-2 text-sm font-medium text-gray-700">Agil</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <p class="text-lg mt-4 text-gray-600">Klicken Sie auf ein Element, um seine Beziehungen zu visualisieren. Halten Sie <kbd class="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">Ctrl</kbd> / <kbd class="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">Cmd</kbd> für eine filternde Mehrfachauswahl.</p>
+        </header>
+
+        <main class="grid grid-cols-1 lg:grid-cols-4 gap-8">
+            <div class="lg:col-span-3">
+                <div id="interactive-columns" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4"></div>
+            </div>
+            <div id="explanation-container" class="lg:col-span-1">
+                 <div class="content-card p-6 sticky top-8">
+                    <h2 id="explanation-title" class="text-2xl font-bold text-indigo-700 mb-4">Erklärungen</h2>
+                    <div id="explanation-content" class="prose max-w-none text-gray-700 h-[32rem] overflow-y-auto pr-2">
+                        <p>Wählen Sie ein Element aus den Spalten aus, um hier detaillierte Informationen und Beschreibungen anzuzeigen.</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <script src="Hermes_2022_Alle_Elemente.js"></script>
+    <script src="Hermes2022_Aufgabenzweck.js"></script>
+    <script src="Hermes2022_Dokumentbeschreibungen.js"></script>
+    <script src="Hermes2022_Modulbeschreibung.js"></script>
+    <script src="Hermes2022_Phasenbeschreibungen.js"></script>
+    <script src="Hermes2022_Rollen.js"></script>
+    <script src="Hermes2022_Szenariobeschreibung.js"></script>
+    <script src="Hermes2022_Zustände.js"></script>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            if (typeof rawQuizData === 'undefined') {
+                document.getElementById('interactive-columns').innerHTML = '<p class="text-red-500 col-span-full">Fehler: Daten konnten nicht geladen werden.</p>';
+                return;
+            }
+
+            const slugify = (text) => {
+                if (typeof text !== 'string') return '';
+                const a = 'àáâäæãåāăąçćčđďèéêëēėęěğǵḧîïíīįìłḿñńǹňôöòóœøōõőṕŕřßśšşșťțûüùúūǘůűųẃẍÿýžźż·/_,:;'
+                const b = 'aaaaaaaaaacccddeeeeeeeegghiiiiiilmnnnnoooooooooprrsssssttuuuuuuuuuwxyyzzz------'
+                const p = new RegExp(a.split('').join('|'), 'g')
+                return text.toString().toLowerCase().replace(/\s+/g, '-').replace(p, c => b.charAt(a.indexOf(c))).replace(/&/g, '-and-').replace(/[^\w\-]+/g, '').replace(/\-\-+/g, '-').replace(/^-+/, '').replace(/-+$/, '');
+            }
+            
+            const elementMap = new Map();
+            const taskMap = new Map();
+            let selectedKeys = new Set();
+            let finalTaskSet = new Set(); 
+            let currentVorgehensweise = 'klassisch';
+
+            function initializeApp(szenarioKey, useRealisierungseinheiten) {
+                elementMap.clear(); taskMap.clear(); selectedKeys.clear(); finalTaskSet.clear();
+                document.getElementById('main-title').textContent = `HERMES 2022: ${szenarioKey.replace('Szenario: ', '')}`;
+                const gesamtuebersichtData = rawQuizData.filter(item => item[szenarioKey] === "x");
+                processData(gesamtuebersichtData, useRealisierungseinheiten);
+                renderColumns(useRealisierungseinheiten);
+                updateExplanation();
+            }
+            
+            function processData(szenarioData, useRealisierungseinheiten) {
+                const getCompatibility = (entries) => {
+                    if (!entries || entries.length === 0) return { isClassic: true, isAgile: true };
+                    const isClassic = entries.some(d => d['Phase: Konzept'] === 'x' || d['Phase: Realisierung'] === 'x' || d['Phase: Einführung'] === 'x');
+                    const isAgile = entries.some(d => d['Phase: Umsetzung'] === 'x');
+                    if (!isClassic && !isAgile) return { isClassic: true, isAgile: true };
+                    return { isClassic, isAgile };
+                };
+                
+                const elementConfigs = [
+                    { data: RollenData, type: 'rolle', nameKey: 'Rolle' },
+                    { data: PhasenData, type: 'phase', nameKey: 'Phase' },
+                    { data: ModulData, type: 'modul', nameKey: 'Modul' },
+                    { data: DokumentData, type: 'doc', nameKey: 'Dokument' },
+                    { data: ZustaendeData, type: 'state', nameKey: 'Zustand' }
+                ];
+                
+                elementConfigs.forEach(config => {
+                    config.data.forEach(item => {
+                        const name = item[config.nameKey];
+                        if (!name) return;
+                        const key = `${config.type}-${slugify(name)}`;
+                        if (elementMap.has(key)) return;
+
+                        const rawTypeMap = { 'doc': 'Dokument', 'state': 'Zustand', 'modul': 'Modul' };
+                        const rawTypeName = rawTypeMap[config.type] || '';
+                        const rawEntries = rawTypeName ? rawQuizData.filter(d => d.Titel === name && d.Typ === rawTypeName) : [];
+                        const compatibility = getCompatibility(rawEntries);
+
+                        elementMap.set(key, { 
+                            type: config.type, name: name, data: item, relations: new Set(),
+                            isClassic: compatibility.isClassic, isAgile: compatibility.isAgile
+                        });
+                    });
+                });
+                
+                const aufgabenImSzenario = szenarioData.filter(item => item.Typ === 'Aufgabe');
+                aufgabenImSzenario.forEach((taskData, index) => {
+                    const taskName = taskData.Titel;
+                    if (!taskName) return;
+
+                    const taskPhasen = Object.keys(taskData).filter(k => k.startsWith('Phase:') && taskData[k] === 'x').map(k => k.replace('Phase: ', ''));
+                    const isClassicTask = taskPhasen.some(p => ['Konzept', 'Realisierung', 'Einführung'].includes(p));
+                    const isAgileTask = taskPhasen.includes('Umsetzung');
+
+                    if (currentVorgehensweise === 'klassisch' && isAgileTask && !isClassicTask) return;
+                    if (currentVorgehensweise === 'agil' && isClassicTask && !isAgileTask) return;
+
+                    const taskKey = `task-${slugify(taskName)}-${index}`;
+                    const aufgabeDetail = AufgabenData.find(d => d.Aufgabe === taskName) || {};
+                    const relatedKeys = new Set();
+                    
+                    Object.keys(taskData).forEach(k => {
+                        if (k.startsWith('Rolle:') && taskData[k]) relatedKeys.add(`rolle-${slugify(k.replace('Rolle: ', '').trim())}`);
+                        if (k.startsWith('Modul:') && taskData[k] === 'x') relatedKeys.add(`modul-${slugify(k.replace('Modul: ', '').trim())}`);
+                    });
+                    
+                    taskPhasen.forEach(phaseName => relatedKeys.add(`phase-${slugify(phaseName)}`));
+                    if (useRealisierungseinheiten && (taskPhasen.includes('Realisierung') || taskPhasen.includes('Einführung'))) {
+                        relatedKeys.add('phase-realisierungseinheiten');
+                    }
+                    taskData.Ergebnis.split('/').forEach(id => {
+                        const ergebnisItem = rawQuizData.find(item => item['NR-ID'] === id.trim());
+                        if (ergebnisItem) {
+                            const type = ergebnisItem.Typ === 'Dokument' ? 'doc' : 'state';
+                            relatedKeys.add(`${type}-${slugify(ergebnisItem.Titel)}`);
+                        }
+                    });
+
+                    const taskObject = { type: 'task', name: taskName, data: { ...taskData, ...aufgabeDetail }, relations: new Set([...relatedKeys].filter(k => elementMap.has(k))) };
+                    taskMap.set(taskKey, taskObject);
+                    taskObject.relations.forEach(key => elementMap.get(key)?.relations.add(taskKey));
+                });
+            }
+
+            function renderColumns(useRealisierungseinheiten) {
+                const container = document.getElementById('interactive-columns');
+                container.innerHTML = '';
+                const columns = {
+                    phase: { title: 'Phasen', data: PhasenData, key: 'Phase' },
+                    rolle: { title: 'Rollen', data: RollenData, key: 'Rolle' },
+                    modul: { title: 'Module', data: ModulData, key: 'Modul' },
+                    task: { title: 'Aufgaben' },
+                    doc: { title: 'Dokumente', data: DokumentData, key: 'Dokument' },
+                    state: { title: 'Zustände', data: ZustaendeData, key: 'Zustand' },
+                };
+                const columnOrder = ['phase', 'rolle', 'modul', 'task', 'doc', 'state'];
+                const createItemDiv = (name, key, type) => {
+                    const itemDiv = document.createElement('div');
+                    itemDiv.className = `relationship-item content-card p-3 text-sm`;
+                    itemDiv.textContent = name; itemDiv.dataset.rel = key; itemDiv.dataset.relType = type;
+                    return itemDiv;
+                };
+
+                columnOrder.forEach(type => {
+                    const columnInfo = columns[type];
+                    const columnDiv = document.createElement('div');
+                    columnDiv.className = 'flex flex-col gap-2';
+                    const title = document.createElement('h3');
+                    title.className = `text-lg font-semibold text-center mb-2 text-indigo-700`;
+                    title.textContent = columnInfo.title;
+                    columnDiv.appendChild(title);
+
+                    if (type === 'task') {
+                        const uniqueTaskNames = new Set();
+                        taskMap.forEach((item, key) => {
+                             if (!uniqueTaskNames.has(item.name)) {
+                                 uniqueTaskNames.add(item.name);
+                                 columnDiv.appendChild(createItemDiv(item.name, key, type));
+                             }
+                        });
+                    } else if (type === 'phase') {
+                        const phaseOrder = useRealisierungseinheiten
+                            ? ['Initialisierung', 'Konzept', 'Realisierungseinheiten', 'Realisierung', 'Einführung', 'Abschluss']
+                            : ['Initialisierung', 'Konzept', 'Realisierung', 'Einführung', 'Umsetzung', 'Abschluss'];
+
+                        phaseOrder.forEach(phaseName => {
+                            if (currentVorgehensweise === 'klassisch' && phaseName === 'Umsetzung') return;
+                            if (currentVorgehensweise === 'agil' && ['Konzept', 'Realisierung', 'Einführung', 'Realisierungseinheiten'].includes(phaseName)) return;
+                             
+                            const key = `phase-${slugify(phaseName)}`;
+                            const element = elementMap.get(key);
+                            if (element && element.relations.size > 0) {
+                                 columnDiv.appendChild(createItemDiv(phaseName, key, type));
+                            }
+                        });
+                    } else {
+                        const uniqueItems = new Set();
+                        columnInfo.data.forEach(dataItem => {
+                            const name = dataItem[columnInfo.key];
+                            if (!name || uniqueItems.has(name)) return; 
+                            const key = `${type}-${slugify(name)}`;
+                            const element = elementMap.get(key);
+                            
+                            let isCompatible = true;
+                            if (element) {
+                                if (currentVorgehensweise === 'klassisch' && element.isAgile && !element.isClassic) { isCompatible = false; }
+                                if (currentVorgehensweise === 'agil' && element.isClassic && !element.isAgile) { isCompatible = false; }
+                            }
+                            
+                            if (element && element.relations.size > 0 && isCompatible) {
+                                uniqueItems.add(name);
+                                columnDiv.appendChild(createItemDiv(name, key, type));
+                            }
+                        });
+                    }
+                    if (columnDiv.childElementCount > 1) { container.appendChild(columnDiv); }
+                });
+            }
+
+            function handleItemClick(event) {
+                const target = event.target.closest('.relationship-item');
+                if (!target) return;
+                const clickedKey = target.dataset.rel;
+
+                const useRealisierungseinheiten = document.getElementById('scenario-selector').value.endsWith('|true');
+
+                if (useRealisierungseinheiten && clickedKey === 'phase-realisierungseinheiten' && !event.ctrlKey && !event.metaKey) {
+                    // *** NEUE TOGGLE-LOGIK ***
+                    const isGroupSelected = selectedKeys.has('phase-realisierungseinheiten') && selectedKeys.size >= 3;
+                    
+                    if (isGroupSelected) {
+                        selectedKeys.clear();
+                    } else {
+                        selectedKeys.clear();
+                        selectedKeys.add('phase-realisierungseinheiten');
+                        selectedKeys.add('phase-realisierung');
+                        selectedKeys.add('phase-einfuhrung');
+                    }
+                } else {
+                    if (!event.ctrlKey && !event.metaKey) {
+                        if (selectedKeys.size === 1 && selectedKeys.has(clickedKey)) {
+                            selectedKeys.clear();
+                        } else {
+                            selectedKeys.clear();
+                            selectedKeys.add(clickedKey);
+                        }
+                    } else {
+                        if (selectedKeys.has(clickedKey)) {
+                            selectedKeys.delete(clickedKey);
+                        } else {
+                            selectedKeys.add(clickedKey);
+                        }
+                    }
+                }
+                
+                updateHighlights();
+                updateExplanation(clickedKey); 
+            }
+
+            function updateHighlights() {
+                const allItems = document.querySelectorAll('.relationship-item');
+                const allColumns = document.querySelectorAll('#interactive-columns > div');
+                allItems.forEach(item => item.classList.remove('highlight-primary', 'highlight-secondary', 'hidden'));
+                allColumns.forEach(col => col.classList.remove('hidden'));
+                
+                if (selectedKeys.size === 0) { 
+                    finalTaskSet.clear(); updateExplanation(); return; 
+                }
+
+                const primaryHighlightKeys = new Set(selectedKeys);
+                const primarySelectionTypes = new Set();
+                primaryHighlightKeys.forEach(key => {
+                    const item = elementMap.get(key) || taskMap.get(key);
+                    if (item) primarySelectionTypes.add(item.type);
+                });
+
+                const phaseFilters = new Set(); const otherFilters = new Set();
+                primaryHighlightKeys.forEach(key => { 
+                    const itemType = (elementMap.get(key) || taskMap.get(key))?.type;
+                    if (itemType === 'phase') phaseFilters.add(key); else otherFilters.add(key);
+                });
+
+                let tasksFromPhases = null;
+                if (phaseFilters.size > 0) {
+                    tasksFromPhases = new Set();
+                    phaseFilters.forEach(phaseKey => { elementMap.get(phaseKey)?.relations.forEach(taskKey => tasksFromPhases.add(taskKey)); });
+                }
+
+                let tasksFromOthers = null;
+                if (otherFilters.size > 0) {
+                    otherFilters.forEach(key => {
+                        const item = elementMap.get(key) || taskMap.get(key);
+                        if (!item) return;
+                        const tasksForItem = (item.type === 'task') ? new Set([...taskMap.keys()].filter(k => taskMap.get(k).name === item.name)) : item.relations;
+                        if (tasksFromOthers === null) { tasksFromOthers = new Set(tasksForItem); } 
+                        else { tasksFromOthers = new Set([...tasksFromOthers].filter(t => tasksForItem.has(t))); }
+                    });
+                }
+
+                if (tasksFromPhases !== null && tasksFromOthers !== null) { finalTaskSet = new Set([...tasksFromPhases].filter(t => tasksFromOthers.has(t))); } 
+                else if (tasksFromPhases !== null) { finalTaskSet = tasksFromPhases; } 
+                else { finalTaskSet = tasksFromOthers || new Set(); }
+                
+                const visibleKeys = new Set(finalTaskSet);
+                finalTaskSet.forEach(taskKey => {
+                    taskMap.get(taskKey)?.relations.forEach(relKey => visibleKeys.add(relKey));
+                });
+                primaryHighlightKeys.forEach(k => visibleKeys.add(k));
+
+                allItems.forEach(item => {
+                    const itemKey = item.dataset.rel;
+                    const itemType = item.dataset.relType;
+
+                    if (primarySelectionTypes.has(itemType) && !primaryHighlightKeys.has(itemKey)) {
+                        item.classList.add('hidden');
+                        return;
+                    }
+                    
+                    if (visibleKeys.has(itemKey)) {
+                        if (primaryHighlightKeys.has(itemKey)) { item.classList.add('highlight-primary'); } 
+                        else { item.classList.add('highlight-secondary'); }
+                    } else {
+                        item.classList.add('hidden');
+                    }
+                });
+                allColumns.forEach(column => { if (column.querySelectorAll('.relationship-item:not(.hidden)').length === 0) { column.classList.add('hidden'); } });
+            }
+            function updateExplanation(key) {
+                 const titleEl = document.getElementById('explanation-title');
+                 const contentEl = document.getElementById('explanation-content');
+                 if(!key || selectedKeys.size === 0) { titleEl.textContent = 'Erklärungen'; contentEl.innerHTML = '<p>Wählen Sie ein Element aus den Spalten aus, um hier detaillierte Informationen und Beschreibungen anzuzeigen.</p>'; return; }
+                 const item = taskMap.get(key) || elementMap.get(key);
+                 if (!item) return;
+                 titleEl.textContent = item.name;
+                 let html = '';
+                 const data = item.data;
+                 const createListFromBrString = (str) => { if (!str || typeof str !== 'string') return ''; const items = str.split(/<br\s*\/?>/gi).map(item => item.replace(/^-/, '').trim()).filter(item => item).map(item => `<li>${item}</li>`); return items.length > 0 ? `<ul>${items.join('')}</ul>` : ''; };
+                 switch(item.type) {
+                      case 'rolle': html = `<p><strong>Beschreibung:</strong> ${data.Beschreibung || 'N/A'}</p><h3>Verantwortung</h3>${createListFromBrString(data.Verantwortung)}<h3>Kompetenzen</h3>${createListFromBrString(data.Kompetenzen)}<h3>Fähigkeiten</h3>${createListFromBrString(data.Fähigkeiten)}`; break;
+                      case 'phase': html = `<p><strong>Beschreibung:</strong> ${data.Beschreibung || 'N/A'}</p><h3>Details</h3>${createListFromBrString(data.Details)}<h3>Phasenende</h3><p>${data.Phasenende || ''}</p>`; break;
+                      case 'modul': html = `<p><strong>Zweck:</strong> ${data.Zweck || 'N/A'}</p><h3>Was ist zu tun?</h3>${createListFromBrString(data['Was ist zu tun '])}`; break;
+                      case 'doc': html = `<p>${data.Originalbeschreibung || 'Keine Erklärung verfügbar.'}</p>`; break;
+                      case 'state': html = `<p>${data.Originalbeschreibung || 'Keine Erklärung verfügbar.'}</p>`; break;
+                      case 'task': html = `<p><strong>Zweck:</strong> ${data['Zweck (Originalbeschreibung)'] || 'N/A'}</p><h3>Grundidee</h3><p>${data['Grundidee (Originalbeschreibung)'] || 'N/A'}</p><h3>HERMES-spezifisch</h3><p>${data['HERMES-spezifisch (Originalbeschreibung)'] || 'N/A'}</p>`; const roles = []; const roleMapping = { 'v': 'Verantwortlich', 'b': 'Beteiligt' }; for (const r_key in data) { if (r_key.startsWith('Rolle:') && data[r_key]) { roles.push(`<li><strong>${r_key.replace('Rolle: ', '').trim()}:</strong> ${roleMapping[data[r_key]] || data[r_key]}</li>`); } } if(roles.length > 0) { roles.sort(); html += `<h3>Beteiligte Rollen</h3><ul>${roles.join('')}</ul>`; } break;
+                 }
+                 contentEl.innerHTML = html;
+            }
+            function setupScenarioSelector() {
+                const selector = document.getElementById('scenario-selector');
+                const szenarioKeys = Object.keys(rawQuizData[0]).filter(k => k.startsWith('Szenario:'));
+                szenarioKeys.forEach(key => {
+                    const name = key.replace('Szenario: ', '');
+                    const opt = document.createElement('option');
+                    opt.value = `${key}|false`; opt.textContent = name; selector.appendChild(opt);
+                    if (name === 'Organisationsanpassung') {
+                        const opt2 = document.createElement('option');
+                        opt2.value = `${key}|true`; opt2.textContent = `${name} mit Realisierungseinheiten`; selector.appendChild(opt2);
+                    }
+                });
+                selector.addEventListener('change', (e) => {
+                    const [key, useRe] = e.target.value.split('|');
+                    const isRealisierungseinheiten = (key === 'Szenario: Organisationsanpassung' && useRe === 'true');
+                    const radios = document.querySelectorAll('input[name="vorgehensweise"]');
+                    if (isRealisierungseinheiten) {
+                        currentVorgehensweise = 'klassisch'; document.getElementById('vorgehen-klassisch').checked = true; radios.forEach(r => r.disabled = true);
+                    } else { radios.forEach(r => r.disabled = false); }
+                    initializeApp(key, useRe === 'true');
+                });
+            }
+            // Initialisierung
+            setupScenarioSelector();
+            document.querySelectorAll('input[name="vorgehensweise"]').forEach(radio => {
+                radio.addEventListener('change', () => {
+                    currentVorgehensweise = document.querySelector('input[name="vorgehensweise"]:checked').value;
+                    const [key, useRe] = document.getElementById('scenario-selector').value.split('|');
+                    initializeApp(key, useRe === 'true');
+                });
+            });
+            const [initialKey, initialUseRe] = document.getElementById('scenario-selector').value.split('|');
+            initializeApp(initialKey, initialUseRe === 'true');
+            document.getElementById('interactive-columns').addEventListener('click', handleItemClick);
+        });
+    </script>
+
+</body>
+</html>

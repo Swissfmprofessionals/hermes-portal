@@ -1,0 +1,1096 @@
+<!DOCTYPE html>
+<html lang="de" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HERMES 2022 Navigator</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <script src="Hermes2022_Modulbeschreibung.js"></script>
+    <script src="Hermes_2022_Alle_Elemente.js"></script>
+    <script src="Hermes2022_Rollen.js"></script>
+    <script src="Hermes2022_Aufgabenzweck.js"></script>
+    <script src="Hermes2022_Dokumentbeschreibungen.js"></script>
+    <script src="Hermes2022_Szenariobeschreibung.js"></script>
+    <script src="Hermes2022_Zustände.js"></script>
+    <script src="Hermes2022_Phasenbeschreibungen.js"></script>
+
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #F8F5F2; color: #4A4A4A; }
+        .phase-button, .role-selector-btn, .vorgehen-btn, .toggle-btn, .factor-btn { transition: all 0.3s ease; }
+        .phase-button.active, .role-selector-btn.active, .vorgehen-btn.active, .toggle-btn.active, .factor-btn.active {
+            background-color: #5F8670 !important; color: #FFFFFF !important; transform: translateY(-4px); box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
+        }
+        .phase-button.active {
+            transform: translateY(-4px) scale(1.05); box-shadow: 0 8px 25px rgba(95, 134, 112, 0.4); border-color: #5F8670;
+        }
+        .phase-button:not(.active):hover, .role-selector-btn:not(.active):hover, .vorgehen-btn:not(.active):hover, .toggle-btn:not(.active):hover {
+            background-color: #B4C5AD; transform: translateY(-2px);
+        }
+        .content-card { background-color: #FFFFFF; border: 1px solid #EAEAEA; border-radius: 0.75rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03); }
+        .chart-container { position: relative; width: 100%; max-width: 48rem; margin: auto; height: 20rem; max-height: 400px; }
+        #roleTasksChart { cursor: pointer; }
+        
+        .sim-step { transition: all 0.5s ease-in-out; }
+        
+        .task-details-content, .glossary-item-content {
+            transition: max-height 0.4s ease-in-out;
+            max-height: 0;
+            overflow: hidden;
+        }
+        .task-details-content.open, .glossary-item-content.open {
+            max-height: 1200px;
+        }
+        .task-toggle-icon, .glossary-toggle-icon {
+            transition: transform 0.3s ease;
+        }
+        .task-toggle-icon.open, .glossary-toggle-icon.open {
+            transform: rotate(180deg);
+        }
+
+        .timeline-item-container { transition: max-height 0.7s ease-in-out, opacity 0.5s ease-in-out, padding 0.7s ease-in-out; max-height: 0; opacity: 0; overflow: hidden; padding-top: 0; padding-bottom: 0; }
+        .timeline-column.active .timeline-item-container { max-height: 2500px; opacity: 1; padding-top: 0.5rem; padding-bottom: 0.5rem; }
+        .unit-box { background-color: #dcfce7; border: 1px solid #86efac; transition: all 0.2s ease-in-out; }
+        .unit-box:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.1); border-color: #22c55e; }
+        
+        .role-explorer-btn {
+            transition: all 0.2s ease-in-out;
+            border: 2px solid transparent;
+        }
+        .role-explorer-btn.inactive {
+            opacity: 0.4;
+            cursor: not-allowed;
+            background-color: #f3f4f6;
+        }
+        .role-explorer-btn.active {
+            transform: scale(1.05);
+            border-color: #5F8670;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+        .role-explorer-btn.interacts {
+            border-color: #60a5fa;
+            box-shadow: 0 0 15px rgba(96, 165, 250, 0.5);
+        }
+        
+        /* CSS FÜR DIE TOUR */
+        #tour-view, #tour-step-card {
+            transition: opacity 0.3s ease;
+        }
+        #tour-view.fade-out, #tour-step-card.fade-out {
+             opacity: 0;
+        }
+        #tour-progress-bar {
+            transition: width 0.4s ease-out;
+        }
+
+        @media (min-width: 640px) { .chart-container { height: 24rem; } }
+    </style>
+</head>
+<body class="antialiased">
+
+    <header id="main-header" class="bg-white/80 backdrop-blur-md sticky top-0 z-50 shadow-sm">
+        <nav class="container mx-auto px-6 py-3 flex flex-wrap justify-between items-center gap-4">
+            <h1 id="main-title" class="text-xl md:text-2xl font-bold text-[#5F8670]">HERMES 2022 Navigator</h1>
+            <div class="flex items-center gap-6">
+                <div class="flex items-center gap-2">
+                    <label for="scenario-selector" class="text-md text-gray-700 font-medium">Szenario:</label>
+                    <select id="scenario-selector" class="bg-white border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-emerald-500 focus:border-emerald-500 block p-2.5"></select>
+                </div>
+                <div id="vorgehen-container" class="flex items-center gap-2">
+                    <label class="text-md text-gray-700 font-medium">Vorgehen:</label>
+                    <div class="flex rounded-lg shadow-sm">
+                        <button id="vorgehen-klassisch" class="vorgehen-btn bg-white font-semibold py-2 px-4 border border-gray-300 rounded-l-lg text-sm">Klassisch</button>
+                        <button id="vorgehen-agil" class="vorgehen-btn bg-white font-semibold py-2 px-4 border-t border-b border-r border-gray-300 rounded-r-lg text-sm">Agil</button>
+                    </div>
+                </div>
+                 <div id="focus-mode-container" class="flex items-center gap-2 border-l pl-6 border-gray-300">
+                    <label for="role-focus-selector" class="text-md text-gray-700 font-medium">Fokus auf Rolle:</label>
+                    <select id="role-focus-selector" class="bg-white border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-emerald-500 focus:border-emerald-500 block p-2.5"></select>
+                    <button id="end-focus-btn" class="hidden bg-red-100 text-red-700 font-semibold py-2 px-4 rounded-lg text-sm hover:bg-red-200 transition-colors">Fokus beenden</button>
+                </div>
+            </div>
+            <div id="main-nav-links" class="hidden lg:flex flex-wrap justify-center space-x-4 text-gray-600 font-medium"></div>
+        </nav>
+    </header>
+
+    <main class="container mx-auto px-6 py-8 md:py-12">
+        
+        <div id="standard-view">
+            <section id="overview" class="text-center mb-16">
+                <h2 id="scenario-title" class="text-3xl md:text-4xl font-bold mb-4"></h2>
+                <p id="scenario-anwendbarkeit" class="max-w-3xl mx-auto text-lg text-gray-600 mb-8"></p>
+                <div id="scenario-examples" class="max-w-3xl mx-auto text-left"></div>
+            </section>
+
+            <section id="phases" class="mb-20">
+                <div class="text-center mb-12">
+                    <h2 class="text-3xl md:text-4xl font-bold mb-4 text-gray-800">Phasen, Module & Ergebnisse</h2>
+                    <p class="max-w-3xl mx-auto text-lg text-gray-600">
+                        Klicken Sie auf eine Phase, um die Details zu sehen. Die Ansicht ist auf das gewählte Vorgehen (<span id="current-vorgehen-text" class="font-semibold"></span>) gefiltert.
+                    </p>
+                </div>
+                <div id="phase-timeline" class="relative mb-12 max-w-5xl mx-auto">
+                    <div class="absolute top-1/2 left-0 w-full h-1 bg-gray-300 rounded-full transform -translate-y-1/2 -z-10"></div>
+                    <div id="phase-buttons-container" class="flex justify-between items-center"></div>
+                </div>
+                <div id="phase-details" class="content-card p-6 md:p-8 min-h-[300px] max-w-5xl mx-auto"></div>
+            </section>
+        </div>
+
+        <div id="complex-view" class="hidden">
+            <section id="complex-projects-overview" class="text-center mb-16">
+                 <h2 id="complex-scenario-title" class="text-3xl md:text-4xl font-bold mb-4"></h2>
+                <p id="complex-scenario-anwendbarkeit" class="max-w-3xl mx-auto text-lg text-gray-600 mb-8"></p>
+            </section>
+            <section id="complex-projects" class="mb-16">
+                <div class="text-center mb-12">
+                    <h2 class="text-3xl md:text-4xl font-bold mb-4">Komplexe Projekte meistern</h2>
+                    <p class="max-w-3xl mx-auto text-lg text-gray-600">
+                        Für dieses Szenario bietet HERMES das Konzept der **Realisierungseinheiten**. Klicken Sie sich durch die Simulation, um das Prinzip zu verstehen.
+                    </p>
+                </div>
+                <div class="content-card p-6 md:p-8 mb-8">
+                    <h3 class="text-2xl font-bold mb-6 text-center">Simulation: Das Prinzip der Realisierungseinheiten</h3>
+                    <div class="flex flex-col md:flex-row items-center justify-center space-y-4 md:space-y-0 md:space-x-2 text-center font-semibold text-sm">
+                        <div id="sim-init" class="sim-step p-4 bg-blue-100 rounded-lg shadow-sm">Initialisierung<br>(1x für alle)</div>
+                        <div class="sim-step text-2xl text-gray-400 opacity-0" id="sim-arrow-1">→</div>
+                        <div id="sim-konzept" class="sim-step p-4 bg-blue-100 rounded-lg shadow-sm opacity-20">Konzept<br>(1x für alle)</div>
+                        <div class="sim-step text-2xl text-gray-400 opacity-0" id="sim-arrow-2">→</div>
+                        <div class="p-4 border-2 border-dashed border-gray-400 rounded-lg w-full md:w-auto">
+                            <div id="sim-unit-a" class="sim-step p-3 bg-green-100 rounded-lg shadow-sm mb-2 opacity-20">Realisierung & Einführung (Einheit A)</div>
+                            <div id="sim-unit-b" class="sim-step p-3 bg-green-100 rounded-lg shadow-sm mb-2 opacity-20">Realisierung & Einführung (Einheit B)</div>
+                            <div id="sim-unit-c" class="sim-step p-3 bg-green-100 rounded-lg shadow-sm opacity-20">Realisierung & Einführung (Einheit C)</div>
+                        </div>
+                         <div class="sim-step text-2xl text-gray-400 opacity-0" id="sim-arrow-3">→</div>
+                        <div id="sim-abschluss" class="sim-step p-4 bg-blue-100 rounded-lg shadow-sm opacity-20">Abschluss<br>(1x für alle)</div>
+                    </div>
+                    <div class="mt-6 p-4 bg-gray-50 rounded-lg border text-center"><p id="sim-info" class="text-gray-700"></p></div>
+                    <div class="flex justify-center mt-6 space-x-4">
+                          <button id="sim-prev" class="bg-gray-200 text-gray-700 font-semibold py-2 px-6 rounded-full hover:bg-gray-300 transition-colors">Zurück</button>
+                          <button id="sim-next" class="bg-[#5F8670] text-white font-bold py-2 px-6 rounded-full hover:bg-[#496858] transition-colors">Weiter</button>
+                    </div>
+                </div>
+            </section>
+            <section id="roles-tasks-complex" class="mb-16">
+                <div class="text-center mb-12">
+                    <h2 class="text-3xl md:text-4xl font-bold mb-4">Interaktive Zeitachse: Rollen & Aufgaben</h2>
+                    <p class="max-w-3xl mx-auto text-lg text-gray-600">
+                        Wählen Sie die relevanten Rollen und filtern Sie die Inhalte, um eine massgeschneiderte Ansicht des Projekts zu erhalten.
+                    </p>
+                </div>
+                <div class="bg-gray-50 p-4 rounded-xl border mb-8">
+                    <div class="text-center mb-3 font-semibold text-gray-700">Rollen auswählen:</div>
+                    <div id="complex-role-buttons" class="flex flex-wrap justify-center gap-2"></div>
+                    <hr class="my-4 border-gray-200">
+                    <div class="text-center mb-3 font-semibold text-gray-700">Inhalte filtern:</div>
+                    <div id="timeline-filter-buttons" class="flex flex-wrap justify-center gap-2">
+                        <button class="toggle-btn text-sm active" data-filter="aufgaben">Aufgaben</button>
+                        <button class="toggle-btn text-sm active" data-filter="dokumente">Dokumente</button>
+                        <button class="toggle-btn text-sm active" data-filter="zustande">Zustände</button>
+                    </div>
+                </div>
+                <div id="timeline-wrapper" class="w-full bg-white p-4 md:p-6 rounded-xl shadow-lg overflow-x-auto"></div>
+            </section>
+        </div>
+
+        <section id="roles" class="mb-20">
+            <div class="text-center mb-12">
+                <h2 class="text-3xl md:text-4xl font-bold mb-4">Relevante Rollen & Verantwortlichkeiten</h2>
+                <p class="max-w-3xl mx-auto text-lg text-gray-600">
+                    Dies sind die wichtigsten Rollen für dieses Szenario. Starten Sie eine geführte Tour oder sehen Sie sich die Details an.
+                </p>
+            </div>
+            <div id="roles-overview" class="grid md:grid-cols-3 gap-8"></div>
+            <div id="role-details-content" class="hidden mt-8"></div>
+        </section>
+        
+        <section id="role-explorer" class="mb-20">
+            <div class="text-center mb-12">
+                <h2 class="text-3xl md:text-4xl font-bold mb-4">Interaktiver Rollen-Explorer</h2>
+                <p class="max-w-3xl mx-auto text-lg text-gray-600">
+                    Klicken Sie auf eine Rolle, um ihre Position in der HERMES-Hierarchie und ihre wichtigsten Interaktionspartner in diesem Szenario zu sehen. Ein erneuter Klick hebt die Auswahl auf.
+                </p>
+            </div>
+            <div id="role-explorer-container" class="content-card p-6"></div>
+            <div id="role-explorer-details" class="mt-8 min-h-[100px]"></div>
+        </section>
+
+        <section id="success-factors" class="mb-16">
+             <div class="text-center mb-12">
+                <h2 class="text-3xl md:text-4xl font-bold mb-4">Module im Fokus</h2>
+                <p class="max-w-3xl mx-auto text-lg text-gray-600">
+                    Dies sind die zentralen Module für das ausgewählte Szenario. Klicken Sie auf ein Modul, um dessen Zweck und Hauptaufgaben zu sehen.
+                </p>
+            </div>
+            <div id="factors-overview" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6"></div>
+            <div id="factor-details-content" class="hidden mt-8"></div>
+        </section>
+
+        <section id="task-distribution" class="mb-16">
+             <div class="text-center mb-12">
+                <h2 class="text-3xl md:text-4xl font-bold">Aufgabenverteilung nach Rollen</h2>
+                 <p class="max-w-3xl mx-auto text-lg text-gray-600 mt-2">
+                    Wählen Sie eine Rolle und klicken Sie danach auf einen Balken im Diagramm, um die Aufgaben der jeweiligen Phase anzuzeigen.
+                </p>
+            </div>
+            <div id="role-selector-container" class="flex justify-center flex-wrap gap-4 mb-8"></div>
+            <div class="content-card p-4 md:p-6 mb-8">
+                <div class="chart-container">
+                    <canvas id="roleTasksChart"></canvas>
+                </div>
+            </div>
+            <div id="role-task-list" class="min-h-[200px] mt-8"></div>
+        </section>
+        
+        <section id="document-flow" class="mb-16">
+            <div class="text-center mb-12">
+                <h2 class="text-3xl md:text-4xl font-bold">Dokumenten-Fluss Visualisierer</h2>
+                <p class="max-w-3xl mx-auto text-lg text-gray-600 mt-2">
+                    Wählen Sie ein Dokument aus, um zu sehen, von welchen Aufgaben es erzeugt und für welche es verwendet wird.
+                </p>
+            </div>
+            <div class="max-w-2xl mx-auto mb-8">
+                 <label for="doc-flow-selector" class="block mb-2 text-sm font-medium text-gray-900">Dokument auswählen:</label>
+                <select id="doc-flow-selector" class="bg-white border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-emerald-500 focus:border-emerald-500 block w-full p-2.5"></select>
+            </div>
+            <div id="doc-flow-visualization" class="min-h-[300px]">
+            </div>
+        </section>
+
+        <section id="glossary" class="mb-16">
+            <div class="text-center mb-12">
+                <h2 class="text-3xl md:text-4xl font-bold">Glossar & Suche</h2>
+                <p class="max-w-3xl mx-auto text-lg text-gray-600 mt-2">
+                    Durchsuchen Sie alle HERMES-Begriffe wie Rollen, Aufgaben, Dokumente und Module.
+                </p>
+            </div>
+            <div class="max-w-2xl mx-auto mb-8">
+                <input type="search" id="glossary-search" class="bg-white border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-emerald-500 focus:border-emerald-500 block w-full p-4" placeholder="Begriff suchen...">
+            </div>
+            <div id="glossary-results" class="max-w-4xl mx-auto">
+            </div>
+        </section>
+        
+    </main>
+
+    <div id="generic-modal" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-[100]">
+        <div class="bg-white max-w-2xl w-full p-6 rounded-lg shadow-xl relative prose max-w-none">
+            <button id="close-generic-modal" class="absolute top-4 right-4 text-gray-400 hover:text-gray-800 text-2xl font-bold">&times;</button>
+            <h3 id="generic-modal-title" class="text-xl font-bold mb-2 text-gray-800 break-words"></h3>
+            <div id="generic-modal-description" class="text-gray-600 whitespace-pre-wrap"></div>
+        </div>
+    </div>
+    
+    <div id="tour-view" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-2xl rounded-xl shadow-2xl flex flex-col overflow-hidden" id="tour-step-card">
+            <div class="p-5 border-b border-gray-200">
+                <div class="flex justify-between items-center mb-3">
+                    <h3 id="tour-step-title" class="text-xl font-bold text-gray-800">Geführte Tour</h3>
+                    <button id="exit-tour-btn" class="text-gray-500 hover:text-gray-800 text-2xl font-bold">&times;</button>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-2">
+                    <div id="tour-progress-bar" class="bg-[#5F8670] h-2 rounded-full"></div>
+                </div>
+            </div>
+
+            <div id="tour-content" class="p-6 prose max-w-none text-gray-700 overflow-y-auto" style="min-height: 250px; max-height: 50vh;">
+                </div>
+
+            <div class="p-4 bg-gray-50 border-t border-gray-200 flex justify-between items-center">
+                <button id="tour-prev-btn" class="bg-gray-200 text-gray-700 font-semibold py-2 px-6 rounded-full hover:bg-gray-300 transition-colors">Zurück</button>
+                <div id="tour-progress-text" class="text-sm font-medium text-gray-500"></div>
+                <button id="tour-next-btn" class="bg-[#5F8670] text-white font-bold py-2 px-6 rounded-full hover:bg-[#496858] transition-colors">Weiter</button>
+            </div>
+        </div>
+    </div>
+
+    <footer class="text-center py-8 mt-12 border-t border-gray-200">
+        <p class="text-gray-500">Dynamisch generiert basierend auf den HERMES 2022 Referenzdaten.</p>
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Prüfung, ob alle Daten-Skripte erfolgreich geladen wurden
+            const allDataLoaded = typeof rawQuizData !== 'undefined' && typeof SzenarioData !== 'undefined' && typeof PhasenData !== 'undefined' && typeof RollenData !== 'undefined' && typeof ModulData !== 'undefined' && typeof DokumentData !== 'undefined' && typeof AufgabenData !== 'undefined' && typeof ZustaendeData !== 'undefined';
+            if (!allDataLoaded) {
+                document.body.innerHTML = '<div class="p-8 text-center text-red-600 font-bold">Fehler: Wichtige Datendateien konnten nicht geladen werden. Stellen Sie sicher, dass alle 8 JS-Dateien im selben Ordner wie diese HTML-Datei liegen und keine Syntaxfehler enthalten.</div>';
+                return;
+            }
+
+            // --- Globale Zustandsvariablen ---
+            let currentScenarioKey = '', useRealisierungseinheiten = false, currentVorgehen = 'klassisch';
+            let scenarioData = [], activePhases = [], activeRoles = new Set(), responsibleRoles = new Set();
+            let activeTimelineRoles = [];
+            let activeTimelineFilters = new Set(['aufgaben', 'dokumente', 'zustande']);
+            let roleTasksChart;
+            let glossaryData = [];
+            let activeExplorerRole = null;
+            // NEU: ZUSTAND FÜR FOKUS-MODUS
+            let activeFocusRole = null;
+            // TOUR-ZUSTANDSVARIABLEN
+            let tourSteps = [];
+            let currentTourStepIndex = 0;
+            
+            // --- Konstanten ---
+            const roleIcons = {'Auftraggeber': '👑', 'Projektleiter': '🧭', 'Anwendervertreter': '👥', 'Teilprojektleiter': '🗺️', 'Betriebsverantwortlicher': '⚙️', 'Entwickler': '💻', 'Business Analyst': '📈', 'Qualitäts- und Risikomanager': '🛡️', 'ISDS-Verantwortlicher': '🔒', 'IT-Architekt': '🏗️', 'Tester': '🧪', 'Testverantwortlicher': '🔬', 'Projektausschuss': '🏛️', 'Fachausschuss': '🗣️', 'Projektunterstützung': '📋', 'Entwicklungsteam': '👩‍💻👨‍💻'};
+            const moduleIcons = { 'Projektsteuerung': '📊', 'Projektführung': '🧭', 'Projektgrundlagen': '🧱', 'Beschaffung': '🛒', 'Organisation': '🏢', 'Produkt': '📦', 'IT-System': '💻', 'Tests': '✔️', 'Einführungsorganisation': '🚀', 'IT-Migration': '🚚', 'IT-Betrieb': '🛠️', 'ISDS': '🛡️' };
+            const ROLE_ORDER = ["Auftraggeber", "Projektausschuss", "Qualitäts- und Risikomanager", "Fachausschuss", "Projektleiter", "Projektunterstützung", "Teilprojektleiter", "Anwendervertreter", "Betriebsverantwortlicher", "Business Analyst", "Entwickler", "Entwicklungsteam", "ISDS-Verantwortlicher", "IT-Architekt", "Tester", "Testverantwortlicher"];
+            const PHASE_ORDER = ["Initialisierung", "Konzept", "Realisierungseinheiten", "Realisierung", "Einführung", "Umsetzung", "Abschluss"];
+            const MODULE_ORDER = ["Projektsteuerung", "Projektführung", "Projektgrundlagen", "Beschaffung", "Organisation", "Produkt", "IT-System", "Tests", "Einführungsorganisation", "IT-Migration", "IT-Betrieb", "ISDS"];
+            
+            const roleHierarchy = {
+                'Steuerung': { roles: ['Auftraggeber', 'Projektausschuss', 'Qualitäts- und Risikomanager'], color: 'bg-red-50 border-red-200' },
+                'Führung': { roles: ['Projektleiter', 'Teilprojektleiter', 'Projektunterstützung'], color: 'bg-blue-50 border-blue-200' },
+                'Ausführung': { roles: ['Anwendervertreter', 'Business Analyst', 'Betriebsverantwortlicher', 'Entwickler', 'IT-Architekt', 'Testverantwortlicher', 'Tester', 'ISDS-Verantwortlicher' ], color: 'bg-green-50 border-green-200'}
+            };
+            
+            // --- DOM-Elemente ---
+            const dom = {
+                mainHeader: document.getElementById('main-header'), scenarioSelector: document.getElementById('scenario-selector'), vorgehenContainer: document.getElementById('vorgehen-container'), vorgehenKlassischBtn: document.getElementById('vorgehen-klassisch'), vorgehenAgilBtn: document.getElementById('vorgehen-agil'), mainNavLinks: document.getElementById('main-nav-links'), standardView: document.getElementById('standard-view'), complexView: document.getElementById('complex-view'), overview: document.getElementById('overview'), scenarioTitle: document.getElementById('scenario-title'), scenarioAnwendbarkeit: document.getElementById('scenario-anwendbarkeit'), scenarioExamples: document.getElementById('scenario-examples'), complexProjectsOverview: document.getElementById('complex-projects-overview'), complexScenarioTitle: document.getElementById('complex-scenario-title'), complexScenarioAnwendbarkeit: document.getElementById('complex-scenario-anwendbarkeit'), mainTitle: document.getElementById('main-title'), phases: document.getElementById('phases'), currentVorgehenText: document.getElementById('current-vorgehen-text'), phaseButtonsContainer: document.getElementById('phase-buttons-container'), phaseDetailsContainer: document.getElementById('phase-details'), complexProjects: document.getElementById('complex-projects'), simInfo: document.getElementById('sim-info'), simPrevBtn: document.getElementById('sim-prev'), simNextBtn: document.getElementById('sim-next'), 
+                roles: document.getElementById('roles'), rolesOverview: document.getElementById('roles-overview'), roleDetailsContent: document.getElementById('role-details-content'),
+                roleExplorerContainer: document.getElementById('role-explorer-container'),
+                roleExplorerDetails: document.getElementById('role-explorer-details'),
+                taskDistribution: document.getElementById('task-distribution'), roleSelectorContainer: document.getElementById('role-selector-container'),
+                roleTaskListContainer: document.getElementById('role-task-list'),
+                chartCanvas: document.getElementById('roleTasksChart'), 
+                successFactors: document.getElementById('success-factors'), factorsOverview: document.getElementById('factors-overview'), factorDetailsContent: document.getElementById('factor-details-content'), 
+                docFlowSelector: document.getElementById('doc-flow-selector'),
+                docFlowVisualization: document.getElementById('doc-flow-visualization'),
+                glossarySearch: document.getElementById('glossary-search'),
+                glossaryResults: document.getElementById('glossary-results'),
+                genericModal: document.getElementById('generic-modal'), genericModalTitle: document.getElementById('generic-modal-title'), genericModalDescription: document.getElementById('generic-modal-description'), closeGenericModal: document.getElementById('close-generic-modal'), rolesTasksComplex: document.getElementById('roles-tasks-complex'), complexRoleButtons: document.getElementById('complex-role-buttons'), timelineWrapper: document.getElementById('timeline-wrapper'), timelineFilterButtons: document.getElementById('timeline-filter-buttons'),
+                // NEUE DOM-ELEMENTE FÜR FOKUS-MODUS
+                focusModeContainer: document.getElementById('focus-mode-container'),
+                roleFocusSelector: document.getElementById('role-focus-selector'),
+                endFocusBtn: document.getElementById('end-focus-btn'),
+                // TOUR DOM-ELEMENTE
+                tourView: document.getElementById('tour-view'), exitTourBtn: document.getElementById('exit-tour-btn'), tourStepTitle: document.getElementById('tour-step-title'), tourContent: document.getElementById('tour-content'), tourPrevBtn: document.getElementById('tour-prev-btn'), tourNextBtn: document.getElementById('tour-next-btn'), tourProgressText: document.getElementById('tour-progress-text'), tourStepCard: document.getElementById('tour-step-card'), tourProgressBar: document.getElementById('tour-progress-bar'),
+            };
+
+            // --- HILFSFUNKTIONEN ---
+            const checkItemRole = (item, roleName) => Object.keys(item).some(key => key.startsWith('Rolle:') && key.replace('Rolle: ', '').trim() === roleName && item[key]);
+            const isResponsible = (item, roleName) => Object.keys(item).some(key => key.startsWith('Rolle:') && key.replace('Rolle: ', '').trim() === roleName && item[key] === 'v');
+            const createItemCard = (item) => {
+                const type = item.Typ;
+                let style = '';
+                if (type === 'Aufgabe') style = 'bg-orange-50 border-orange-200 hover:bg-orange-100';
+                else if (type === 'Dokument') style = 'bg-indigo-50 border-indigo-200 hover:bg-indigo-100';
+                else if (type === 'Zustand') style = 'bg-cyan-50 border-cyan-200 hover:bg-cyan-100';
+                
+                const isRelevantInFocus = !activeFocusRole || checkItemRole(item, activeFocusRole);
+                const extraClasses = isRelevantInFocus ? '' : 'opacity-30';
+
+                return `<button class="w-full text-left p-2 my-1 rounded-md shadow-sm border ${style} ${extraClasses} transition-colors" data-action="showDetail" data-id="${item['NR-ID']}"><span class="font-semibold">${type}:</span> ${item.Titel}</button>`;
+            };
+
+            // --- DATENFILTERUNG UND LOGIK ---
+            function filterDataForScenario() {
+                scenarioData = rawQuizData.filter(item => item[currentScenarioKey] === "x");
+                const phaseSet = new Set();
+                scenarioData.forEach(item => { Object.keys(item).forEach(key => { if (key.startsWith('Phase:') && item[key] === 'x') phaseSet.add(key.replace('Phase: ', '')); }); });
+                const allActivePhases = Array.from(phaseSet);
+                
+                if (useRealisierungseinheiten) {
+                    activePhases = allActivePhases.filter(p => ["Initialisierung", "Konzept", "Realisierung", "Einführung", "Abschluss"].includes(p));
+                } else if (currentVorgehen === 'agil') {
+                    activePhases = allActivePhases.filter(p => ["Initialisierung", "Umsetzung", "Abschluss"].includes(p));
+                } else {
+                    activePhases = allActivePhases.filter(p => ["Initialisierung", "Konzept", "Realisierung", "Einführung", "Abschluss"].includes(p));
+                }
+
+                // Aktive und verantwortliche Rollen für das Szenario berechnen
+                const currentActiveRoles = new Set();
+                const currentResponsibleRoles = new Set();
+                scenarioData.forEach(item => {
+                    Object.keys(item).forEach(key => {
+                        if (key.startsWith('Rolle:')) {
+                            const roleName = key.replace('Rolle: ', '').trim();
+                            if (item[key]) currentActiveRoles.add(roleName);
+                            if (item.Typ === 'Aufgabe' && item[key] === 'v' && activePhases.some(p => item[`Phase: ${p}`] === 'x')) {
+                                currentResponsibleRoles.add(roleName);
+                            }
+                        }
+                    });
+                });
+                activeRoles = currentActiveRoles;
+                responsibleRoles = currentResponsibleRoles;
+            }
+            
+            // --- FUNKTIONEN FÜR DIE GEFÜHRTE TOUR ---
+
+            /** Generiert die kompakten Schritte für die Tour basierend auf der ausgewählten Rolle */
+            function generateTourData(selectedRole) {
+                const sortedPhases = PHASE_ORDER.filter(p => activePhases.includes(p));
+                let steps = [];
+
+                steps.push({
+                    type: 'welcome',
+                    role: selectedRole,
+                });
+
+                sortedPhases.forEach(phaseName => {
+                    const tasksInPhaseForRole = scenarioData.filter(item =>
+                        item.Typ === 'Aufgabe' && item[`Phase: ${phaseName}`] === 'x' && checkItemRole(item, selectedRole)
+                    );
+                    const uniqueTaskTitles = [...new Set(tasksInPhaseForRole.map(t => t.Titel))];
+
+                    if (uniqueTaskTitles.length > 0) {
+                         steps.push({ type: 'phase-intro', phase: phaseName });
+                    }
+
+                    uniqueTaskTitles.forEach(taskTitle => {
+                        const taskEntry = tasksInPhaseForRole.find(t => t.Titel === taskTitle);
+                        const taskDetails = AufgabenData.find(aufgabe => aufgabe.Aufgabe === taskTitle);
+                        const isResp = isResponsible(taskEntry, selectedRole);
+
+                        const resultIDs = [...new Set(taskEntry.Ergebnis.split('/').map(id => id.trim()).filter(Boolean))];
+                        const results = resultIDs.map(id => {
+                            const doc = rawQuizData.find(item => item['NR-ID'] === id);
+                            return doc ? { type: doc.Typ, title: doc.Titel } : null;
+                        }).filter(Boolean);
+                        
+                        const partnerRoles = new Set();
+                        const allEntriesForTask = scenarioData.filter(item => item.Titel === taskTitle && item[`Phase: ${phaseName}`] === 'x');
+                        allEntriesForTask.forEach(entry => {
+                            Object.keys(entry).forEach(key => {
+                                if (key.startsWith('Rolle:') && entry[key] && key.replace('Rolle: ', '').trim() !== selectedRole) {
+                                    partnerRoles.add(key.replace('Rolle: ', '').trim());
+                                }
+                            });
+                        });
+                        
+                        steps.push({
+                            type: 'task',
+                            phase: phaseName,
+                            task: {
+                                title: taskTitle,
+                                isResponsible: isResp,
+                                purpose: taskDetails?.['Zweck (Originalbeschreibung)'],
+                                results: results,
+                                partners: ROLE_ORDER.filter(r => partnerRoles.has(r))
+                            }
+                        });
+                    });
+                });
+                
+                steps.push({ type: 'end', role: selectedRole });
+                tourSteps = steps;
+            }
+            
+            /** Initialisiert und startet die Tour für die gewählte Rolle */
+            function initiateTour(roleName) {
+                generateTourData(roleName);
+                currentTourStepIndex = 0;
+                dom.tourView.classList.remove('hidden');
+                document.body.style.overflow = 'hidden';
+                renderCurrentTourStep();
+            }
+
+            /** Rendert den aktuellen, kompakten Schritt der Tour */
+            function renderCurrentTourStep() {
+                if (currentTourStepIndex < 0 || currentTourStepIndex >= tourSteps.length) return;
+                
+                const step = tourSteps[currentTourStepIndex];
+                let title = 'Geführte Tour';
+                let contentHtml = '';
+
+                switch (step.type) {
+                    case 'welcome':
+                        title = `Tour für: ${step.role}`;
+                        contentHtml = `<p class="text-lg">Willkommen zur geführten Tour für die Rolle <strong>${step.role}</strong>. Wir zeigen Ihnen nun schrittweise die wichtigsten Aufgaben und Ergebnisse, die Sie durch das Projekt begleiten.</p>`;
+                        break;
+                    case 'phase-intro':
+                        title = `Nächste Phase: ${step.phase}`;
+                        contentHtml = `<p class="text-2xl text-center font-bold text-gray-700 mt-8">Sie betreten nun die Phase<br><strong class="text-3xl text-[#5F8670]">${step.phase}</strong></p>`;
+                        break;
+                    case 'task':
+                        title = `Ihre Aufgabe in: ${step.phase}`;
+                        const t = step.task;
+                        contentHtml = `
+                            <h4 class="text-2xl font-bold text-gray-800 mt-1 mb-3">${t.title}</h4>
+                            <p class="mb-4 text-lg">Ihre Rolle: <span class="font-semibold px-3 py-1 rounded-full text-white ${t.isResponsible ? 'bg-emerald-600' : 'bg-blue-500'}">${t.isResponsible ? 'Hauptverantwortlich' : 'Beteiligt'}</span></p>
+                            <div class="space-y-4 text-base">
+                                <div>
+                                    <h5 class="font-bold text-gray-700">Zweck der Aufgabe</h5>
+                                    <p>${t.purpose || 'Keine Beschreibung verfügbar.'}</p>
+                                </div>
+                                ${t.results.length > 0 ? `
+                                <div>
+                                    <h5 class="font-bold text-gray-700">Wichtige Ergebnisse</h5>
+                                    <ul class="list-disc list-inside">${t.results.map(r => `<li><strong>${r.type}:</strong> ${r.title}</li>`).join('')}</ul>
+                                </div>` : ''}
+                                ${t.partners.length > 0 ? `
+                                <div>
+                                    <h5 class="font-bold text-gray-700">Zusammenarbeit mit</h5>
+                                    <div class="flex flex-wrap gap-2 mt-2">${t.partners.map(p => `<span class="bg-gray-100 text-gray-700 text-sm font-medium px-3 py-1 rounded-full">${p}</span>`).join('')}</div>
+                                </div>` : ''}
+                            </div>`;
+                        break;
+                    case 'end':
+                        title = 'Ende der Tour';
+                        contentHtml = `<p class="text-lg">Sie haben alle relevanten Aufgaben für die Rolle <strong>${step.role}</strong> in diesem Szenario durchlaufen. Sie können die Tour jetzt beenden oder die Schritte noch einmal durchgehen.</p>`;
+                        break;
+                }
+                
+                dom.tourStepTitle.innerHTML = title;
+                dom.tourContent.innerHTML = contentHtml;
+                
+                // Fortschritt aktualisieren
+                const progressPercentage = tourSteps.length <= 1 ? 100 : (currentTourStepIndex / (tourSteps.length - 1)) * 100;
+                dom.tourProgressBar.style.width = `${progressPercentage}%`;
+                dom.tourProgressText.textContent = `Schritt ${currentTourStepIndex + 1} von ${tourSteps.length}`;
+                
+                dom.tourPrevBtn.disabled = currentTourStepIndex === 0;
+                dom.tourPrevBtn.classList.toggle('opacity-50', currentTourStepIndex === 0);
+
+                if (currentTourStepIndex === tourSteps.length - 1) {
+                    dom.tourNextBtn.textContent = 'Beenden';
+                } else {
+                    dom.tourNextBtn.textContent = 'Weiter';
+                }
+            }
+
+            /** Beendet die Tour und setzt die Ansicht zurück */
+            function endTour() {
+                dom.tourView.classList.add('fade-out');
+                setTimeout(() => {
+                    dom.tourView.classList.add('hidden');
+                    dom.tourView.classList.remove('fade-out');
+                    document.body.style.overflow = '';
+                    tourSteps = [];
+                    currentTourStepIndex = 0;
+                }, 300);
+            }
+
+
+            // --- SEKTIONS-RENDER-FUNKTIONEN ---
+            function updateNavLinks(isComplex) {
+                dom.mainNavLinks.innerHTML = ''; 
+                const links = isComplex ? [
+                    { href: '#complex-projects-overview', text: 'Überblick' }, { href: '#complex-projects', text: 'Simulation' }, { href: '#roles-tasks-complex', text: 'Zeitachse' },
+                    { href: '#roles', text: 'Rollen' }, { href: '#role-explorer', text: 'Rollen-Explorer' }, { href: '#success-factors', text: 'Module' }, { href: '#task-distribution', text: 'Aufgaben' }, { href: '#document-flow', text: 'Dokumenten-Fluss' }, { href: '#glossary', text: 'Glossar' }
+                ] : [
+                    { href: '#overview', text: 'Überblick' }, { href: '#phases', text: 'Phasen' },
+                    { href: '#roles', text: 'Rollen' }, { href: '#role-explorer', text: 'Rollen-Explorer' }, { href: '#success-factors', text: 'Module' }, { href: '#task-distribution', text: 'Aufgaben' }, { href: '#document-flow', text: 'Dokumenten-Fluss' }, { href: '#glossary', text: 'Glossar' }
+                ];
+                links.forEach(linkInfo => {
+                    const a = document.createElement('a');
+                    a.href = linkInfo.href;
+                    a.textContent = linkInfo.text;
+                    a.className = 'hover:text-[#5F8670]';
+                    dom.mainNavLinks.appendChild(a);
+                });
+            }
+
+            function toggleViewMode() {
+                const isComplex = useRealisierungseinheiten;
+                dom.standardView.style.display = isComplex ? 'none' : 'block';
+                dom.complexView.style.display = isComplex ? 'block' : 'none';
+                dom.vorgehenContainer.style.display = isComplex ? 'none' : 'flex';
+                updateNavLinks(isComplex); 
+            }
+            
+            function renderAllSections() {
+                renderOverview();
+                renderRoleSection();
+                renderRoleExplorer();
+                renderModulesSection();
+                
+                renderDocFlowSelector(); 
+                
+                renderGlossary();
+
+                if (useRealisierungseinheiten) {
+                    initSimulation();
+                    initComplexTimeline();
+                } else {
+                    dom.currentVorgehenText.textContent = currentVorgehen;
+                    renderPhaseSection();
+                    
+                    let defaultPhase = null;
+                    if (activePhases.includes('Initialisierung')) {
+                        defaultPhase = 'Initialisierung';
+                    } else if (activePhases.length > 0) {
+                        defaultPhase = activePhases[0];
+                    }
+
+                    if (defaultPhase) {
+                        renderPhaseDetails(defaultPhase);
+                    } else if(dom.phaseDetailsContainer) {
+                        dom.phaseDetailsContainer.innerHTML = '<p class="text-center text-gray-500">Für diese Kombination sind keine Phasen definiert.</p>';
+                    }
+                }
+                
+                // Logik für die Aufgabenverteilung
+                const firstRoleBtn = dom.roleSelectorContainer.querySelector('button');
+                let roleToUpdate = firstRoleBtn ? firstRoleBtn.dataset.role : null;
+
+                // Wenn Fokus-Modus aktiv, diesen als Standard setzen
+                if (activeFocusRole && responsibleRoles.has(activeFocusRole)) {
+                    roleToUpdate = activeFocusRole;
+                }
+
+                if (roleToUpdate) {
+                    updateTaskDistribution(roleToUpdate);
+                } else {
+                    if (roleTasksChart) roleTasksChart.destroy();
+                    if(dom.roleTaskListContainer) dom.roleTaskListContainer.innerHTML = '<p class="text-center text-gray-500">Für dieses Szenario sind keine verantwortlichen Rollen definiert.</p>';
+                }
+            }
+
+            // NEU: Funktion zum Befüllen des Fokus-Dropdowns
+            function renderRoleFocusSelector() {
+                const sortedActiveRoles = ROLE_ORDER.filter(role => activeRoles.has(role));
+                dom.roleFocusSelector.innerHTML = `<option value="">-- Kein Fokus --</option>` +
+                    sortedActiveRoles.map(roleName =>
+                        `<option value="${roleName}" ${activeFocusRole === roleName ? 'selected' : ''}>${roleName}</option>`
+                    ).join('');
+                
+                dom.focusModeContainer.style.display = sortedActiveRoles.length > 0 ? 'flex' : 'none';
+            }
+
+            function renderOverview() {
+                const data = SzenarioData.find(s => `Szenario: ${s.Szenario}` === currentScenarioKey);
+                if (!data) return;
+                let title = data.Szenario;
+                let anwendbarkeit = data.Anwendbarkeit;
+                if (useRealisierungseinheiten) {
+                    title += " mit Realisierungseinheiten";
+                    const reData = PhasenData.find(p => p.Phase === "Realisierungseinheiten");
+                    if (reData) anwendbarkeit = reData.Beschreibung;
+                }
+                dom.mainTitle.textContent = `HERMES 2022: ${title}`;
+                const examplesHtml = [data["Beispiel 1"], data["Beispiel 2"], data["Beispiel 3"]].filter(Boolean).map(ex => `<li>${ex.replace('- ', '')}</li>`).join('');
+                const targetTitle = useRealisierungseinheiten ? dom.complexScenarioTitle : dom.scenarioTitle;
+                const targetAnwendbarkeit = useRealisierungseinheiten ? dom.complexScenarioAnwendbarkeit : dom.scenarioAnwendbarkeit;
+                if(targetTitle) targetTitle.textContent = title;
+                if(targetAnwendbarkeit) targetAnwendbarkeit.innerHTML = anwendbarkeit;
+                if (!useRealisierungseinheiten && dom.scenarioExamples) {
+                    dom.scenarioExamples.innerHTML = `<h3 class="font-bold text-lg mb-2 text-center">Typische Beispiele:</h3><ul class="list-disc list-inside mx-auto max-w-lg text-gray-600">${examplesHtml}</ul>`;
+                } else if (dom.scenarioExamples) {
+                    dom.scenarioExamples.innerHTML = '';
+                }
+            }
+            
+            function renderPhaseSection() {
+                let phaseOrder = (currentVorgehen === 'agil') ? ["Initialisierung", "Umsetzung", "Abschluss"] : ["Initialisierung", "Konzept", "Realisierung", "Einführung", "Abschluss"];
+                dom.phaseButtonsContainer.innerHTML = phaseOrder.map(phaseName => {
+                    const isActive = activePhases.includes(phaseName);
+                    return `<div class="w-1/5 text-center"><button class="phase-button w-24 h-24 md:w-32 md:h-32 bg-white border-2 rounded-full flex items-center justify-center text-center font-semibold text-sm md:text-base p-2 shadow-md ${isActive ? 'border-gray-400' : 'border-gray-200 text-gray-400 cursor-not-allowed'}" data-phase="${phaseName}" ${!isActive ? 'disabled' : ''}>${phaseName}</button></div>`;
+                }).join('');
+            }
+            
+            function renderPhaseDetails(phaseId) {
+                const phaseInfo = PhasenData.find(p => p.Phase === phaseId);
+                if (!phaseInfo) { dom.phaseDetailsContainer.innerHTML = '<p class="text-center text-gray-500">Bitte eine Phase auswählen.</p>'; return; }
+                const tasksInPhase = scenarioData.filter(item => item.Typ === 'Aufgabe' && item[`Phase: ${phaseId}`] === 'x');
+                const uniqueTasks = [...new Map(tasksInPhase.map(item => [item.Titel, item])).values()];
+                const modulesInPhase = new Set();
+                tasksInPhase.forEach(task => Object.keys(task).forEach(key => { if (key.startsWith('Modul:') && task[key] === 'x') modulesInPhase.add(key.replace('Modul: ', '')); }));
+                const resultsInPhase = new Set();
+                tasksInPhase.forEach(task => task.Ergebnis.split('/').forEach(id => { const r = rawQuizData.find(i => i['NR-ID'] === id.trim()); if(r) resultsInPhase.add(r.Titel); }));
+                const sortedModules = MODULE_ORDER.filter(m => modulesInPhase.has(m));
+                
+                // Logik für Fokus-Modus
+                const modulesHtml = sortedModules.map(m => {
+                    const hasRelevantTask = !activeFocusRole || uniqueTasks.some(t => t[`Modul: ${m}`] === 'x' && checkItemRole(t, activeFocusRole));
+                    return `<span class="transition-opacity inline-block bg-gray-100 text-gray-700 text-sm font-medium mr-2 mb-2 px-3 py-1 rounded-full ${hasRelevantTask ? '' : 'opacity-30'}">${m}</span>`;
+                }).join('') || 'Keine spezifischen Module.';
+
+                const tasksHtml = uniqueTasks.length > 0 ? uniqueTasks.map(t => {
+                    const isRelevant = !activeFocusRole || checkItemRole(t, activeFocusRole);
+                    return `<li class="transition-opacity ${isRelevant ? '' : 'opacity-30'}">${t.Titel}</li>`;
+                }).join('') : '<li>Keine Kernaufgaben definiert.</li>';
+                
+                const resultsHtml = resultsInPhase.size > 0 ? [...resultsInPhase].sort().map(r => {
+                    const producingTask = uniqueTasks.find(t => t.Ergebnis.split('/').some(id => rawQuizData.find(i => i['NR-ID'] === id.trim())?.Titel === r));
+                    const isRelevant = !activeFocusRole || (producingTask && checkItemRole(producingTask, activeFocusRole));
+                    return `<li class="transition-opacity ${isRelevant ? '' : 'opacity-30'}">${r}</li>`;
+                }).join('') : '<li>Keine Ergebnisse definiert.</li>';
+
+                dom.phaseDetailsContainer.innerHTML = `<div class="border-b-2 border-gray-100 pb-6 mb-6"><h3 class="text-2xl font-bold mb-2 text-[#5F8670]">${phaseInfo.Phase}</h3><p class="text-lg text-gray-600 font-medium"><strong>Beschreibung:</strong> ${phaseInfo.Beschreibung}</p></div><div class="grid md:grid-cols-3 gap-x-8 gap-y-6"><div><h4 class="font-bold text-lg mb-3 text-gray-800">Relevante Module</h4><div>${modulesHtml}</div></div><div><h4 class="font-bold text-lg mb-3 text-gray-800">Kernaufgaben</h4><ul class="space-y-2 list-disc list-inside text-gray-600">${tasksHtml}</ul></div><div><h4 class="font-bold text-lg mb-3 text-gray-800">Wichtigste Ergebnisse</h4><ul class="space-y-2 list-disc list-inside text-gray-600">${resultsHtml}</ul></div></div>`;
+                document.querySelectorAll('.phase-button').forEach(btn => btn.classList.toggle('active', btn.dataset.phase === phaseId));
+            }
+
+            function renderRoleSection() {
+                const sortedActiveRoles = ROLE_ORDER.filter(role => activeRoles.has(role));
+                
+                dom.rolesOverview.innerHTML = sortedActiveRoles.map(roleName => {
+                    const role = RollenData.find(r => r.Rolle === roleName);
+                    if (!role) return '';
+                    const isFocused = activeFocusRole === roleName;
+                    return `
+                    <div class="content-card p-6 text-center flex flex-col justify-between h-full transition-all duration-300 ${isFocused ? 'ring-2 ring-offset-2 ring-emerald-500 transform scale-105' : ''}">
+                        <div>
+                            <div class="mx-auto mb-4 w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center text-3xl">${roleIcons[role.Rolle] || '👤'}</div>
+                            <h3 class="text-xl font-bold mb-2">${role.Rolle}</h3>
+                            <p class="text-gray-600 text-sm">${role.Beschreibung.substring(0, 90)}...</p>
+                        </div>
+                        <div class="mt-6 space-y-2">
+                            <button class="text-sm w-full bg-gray-200 text-gray-800 font-semibold py-2 px-4 rounded-lg hover:bg-gray-300 transition-colors" data-role-details="${role.Rolle}">Details ansehen</button>
+                            <button class="text-sm w-full bg-amber-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-amber-600 transition-colors transform hover:scale-105" data-tour-role-start="${role.Rolle}">Tour starten 🚀</button>
+                        </div>
+                    </div>`;
+                }).join('');
+
+                const sortedResponsibleRoles = ROLE_ORDER.filter(role => responsibleRoles.has(role));
+                dom.roleSelectorContainer.innerHTML = sortedResponsibleRoles.map(roleName => `<button class="role-selector-btn bg-white border-2 border-gray-300 font-semibold py-2 px-4 rounded-full shadow-sm text-sm" data-role="${roleName}">${roleName}</button>`).join('');
+            }
+            
+            function showRoleDetails(roleId) {
+                const data = RollenData.find(r => r.Rolle === roleId);
+                if (!data) return;
+                const formatList = (str) => str.split('<br>').map(item => `<li>${item.replace(/^- /, '')}</li>`).join('');
+                dom.roleDetailsContent.innerHTML = `<div class="content-card p-6 md:p-8"><div class="flex justify-between items-start mb-6"><div><div class="flex items-center mb-2"><span class="text-3xl mr-3">${roleIcons[data.Rolle] || '👤'}</span><h3 class="text-2xl md:text-3xl font-bold text-[#5F8670]">${data.Rolle}</h3></div><p class="text-lg text-gray-600">${data.Beschreibung}</p></div><button id="close-role-details" class="bg-gray-100 text-gray-700 font-semibold py-2 px-4 rounded-lg hover:bg-gray-200">Zurück</button></div><div class="grid md:grid-cols-3 gap-8 mt-6 border-t pt-6"><div><h4 class="font-bold text-lg mb-2">Verantwortung</h4><ul class="space-y-2 list-disc list-inside text-sm">${formatList(data.Verantwortung)}</ul></div><div><h4 class="font-bold text-lg mb-2">Kompetenzen</h4><ul class="space-y-2 list-disc list-inside text-sm">${formatList(data.Kompetenzen)}</ul></div><div><h4 class="font-bold text-lg mb-2">Fähigkeiten</h4><ul class="space-y-2 list-disc list-inside text-sm">${formatList(data.Fähigkeiten)}</ul></div></div></div>`;
+                dom.rolesOverview.classList.add('hidden');
+                dom.roleDetailsContent.classList.remove('hidden');
+                document.getElementById('close-role-details').addEventListener('click', () => { dom.roleDetailsContent.classList.add('hidden'); dom.rolesOverview.classList.remove('hidden'); }, { once: true });
+            }
+            
+            function renderRoleExplorer() {
+                let html = '<div class="grid grid-cols-1 md:grid-cols-3 gap-4">';
+                for (const level in roleHierarchy) {
+                    html += `<div class="p-4 rounded-lg border ${roleHierarchy[level].color}">
+                        <h3 class="text-xl font-bold text-center mb-4 text-gray-700">${level}</h3>
+                        <div class="grid grid-cols-2 gap-3">`;
+                    
+                    roleHierarchy[level].roles.forEach(roleName => {
+                        const isActiveInScenario = activeRoles.has(roleName);
+                        html += `
+                            <button class="role-explorer-btn p-3 text-center rounded-md font-semibold text-sm shadow-sm ${isActiveInScenario ? 'bg-white' : 'inactive'}" data-role-explorer-name="${roleName}" ${!isActiveInScenario ? 'disabled' : ''}>
+                                <span class="text-2xl">${roleIcons[roleName] || '👤'}</span>
+                                <span class="block mt-1">${roleName}</span>
+                            </button>`;
+                    });
+                    html += `</div></div>`;
+                }
+                html += '</div>';
+                dom.roleExplorerContainer.innerHTML = html;
+                dom.roleExplorerContainer.classList.toggle('pointer-events-none', !!activeFocusRole);
+
+                if (activeFocusRole) {
+                    activeExplorerRole = activeFocusRole;
+                    showRoleExplorerDetails(activeFocusRole);
+                } else {
+                    activeExplorerRole = null;
+                    showRoleExplorerDetails(null); 
+                }
+            }
+
+            function showRoleExplorerDetails(selectedRoleName) {
+                document.querySelectorAll('.role-explorer-btn').forEach(btn => btn.classList.remove('active', 'interacts'));
+                
+                if (!selectedRoleName) {
+                    dom.roleExplorerDetails.innerHTML = '<p class="text-center text-gray-500">Wählen Sie eine Rolle aus, um Details und Interaktionen zu sehen.</p>';
+                    return;
+                }
+
+                const partners = new Set();
+                const relevantTasks = scenarioData.filter(item => item.Typ === 'Aufgabe' && checkItemRole(item, selectedRoleName));
+
+                relevantTasks.forEach(task => {
+                    Object.keys(task).forEach(key => {
+                        if (key.startsWith('Rolle:') && task[key]) {
+                            const partnerName = key.replace('Rolle: ', '').trim();
+                            if (partnerName !== selectedRoleName) partners.add(partnerName);
+                        }
+                    });
+                });
+                
+                const activeBtn = document.querySelector(`[data-role-explorer-name="${selectedRoleName}"]`);
+                if (activeBtn) activeBtn.classList.add('active');
+
+                partners.forEach(partnerName => {
+                    const partnerBtn = document.querySelector(`[data-role-explorer-name="${partnerName}"]`);
+                    if (partnerBtn && !partnerBtn.disabled) partnerBtn.classList.add('interacts');
+                });
+
+                const roleData = RollenData.find(r => r.Rolle === selectedRoleName);
+                if (roleData) {
+                    dom.roleExplorerDetails.innerHTML = `<div class="content-card p-6"><div class="flex items-center mb-3"><span class="text-3xl mr-3">${roleIcons[roleData.Rolle] || '👤'}</span><h3 class="text-2xl font-bold text-[#5F8670]">${roleData.Rolle}</h3></div><p class="text-gray-700 mb-4">${roleData.Beschreibung}</p><h4 class="font-semibold text-md text-gray-800">Hauptverantwortung:</h4><ul class="list-disc list-inside text-sm text-gray-600 mt-2">${roleData.Verantwortung.split('<br>').slice(0, 3).map(item => `<li>${item.replace(/^- /, '')}</li>`).join('')}</ul></div>`;
+                }
+            }
+
+            function updateTaskDistribution(roleId) {
+                let phaseOrder = useRealisierungseinheiten ? ["Initialisierung", "Konzept", "Realisierung", "Einführung", "Abschluss"] : (currentVorgehen === 'agil' ? ["Initialisierung", "Umsetzung", "Abschluss"] : ["Initialisierung", "Konzept", "Realisierung", "Einführung", "Abschluss"]);
+                const activePhaseOrder = phaseOrder.filter(p => activePhases.includes(p));
+                const taskCounts = activePhaseOrder.map(phase => new Set(scenarioData.filter(item => item.Typ === 'Aufgabe' && item[`Phase: ${phase}`] === 'x' && isResponsible(item, roleId)).map(item => item.Titel)).size);
+                
+                if (roleTasksChart) roleTasksChart.destroy();
+                let selectedPhaseIndex = -1;
+
+                roleTasksChart = new Chart(dom.chartCanvas.getContext('2d'), { type: 'bar', data: { labels: activePhaseOrder, datasets: [{ label: `Verantwortliche Aufgaben`, data: taskCounts, backgroundColor: (context) => context.dataIndex === selectedPhaseIndex ? '#5F8670' : '#6ee7b7', borderColor: '#059669', borderWidth: 1, borderRadius: 5 }] }, options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }, plugins: { legend: { display: false } }, onClick: (event, elements) => { if (elements.length > 0) { const clickedIndex = elements[0].index; const phaseId = roleTasksChart.data.labels[clickedIndex]; selectedPhaseIndex = clickedIndex; roleTasksChart.update(); renderRoleTasksForPhase(roleId, phaseId); } } } });
+                
+                dom.roleTaskListContainer.innerHTML = `<p class="text-center text-gray-500">Bitte klicken Sie auf einen Balken im Diagramm, um die Aufgaben für eine Phase anzuzeigen.</p>`;
+                document.querySelectorAll('.role-selector-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.role === roleId));
+            }
+
+            function renderRoleTasksForPhase(roleId, phaseId) {
+                const tasksInPhase = scenarioData.filter(item => item.Typ === 'Aufgabe' && item[`Phase: ${phaseId}`] === 'x' && isResponsible(item, roleId));
+                let taskListHtml = '';
+
+                if (tasksInPhase.length > 0) {
+                    const uniqueTaskTitles = [...new Set(tasksInPhase.map(item => item.Titel))];
+                    taskListHtml += `<div class="border border-gray-200 rounded-lg shadow-sm">`; 
+                    
+                    uniqueTaskTitles.sort().forEach(taskTitle => {
+                        const allEntriesForTask = scenarioData.filter(item => item.Titel === taskTitle && item[`Phase: ${phaseId}`] === 'x');
+                        const primaryTask = allEntriesForTask[0];
+                        const taskDetails = AufgabenData.find(aufgabe => aufgabe.Aufgabe === taskTitle) || {};
+                        const involvedRoles = new Set();
+                        const results = new Set();
+                        const module = Object.keys(primaryTask).find(k => k.startsWith('Modul:') && primaryTask[k] === 'x')?.replace('Modul: ', '');
+                        
+                        allEntriesForTask.forEach(taskEntry => {
+                            Object.keys(taskEntry).forEach(key => { if (key.startsWith('Rolle:') && taskEntry[key] === 'b') involvedRoles.add(key.replace('Rolle: ', '').trim()); });
+                            taskEntry.Ergebnis.split('/').forEach(id => { const r = rawQuizData.find(i => i['NR-ID'] === id.trim()); if (r) results.add(r.Titel); });
+                        });
+                        
+                        const uniqueId = `task-details-${roleId}-${phaseId}-${taskTitle}`.replace(/[^a-zA-Z0-9-]/g, '');
+                        
+                        taskListHtml += `<div class="task-item border-b last:border-b-0 border-gray-200"><div data-action="toggle-task-details" data-target="${uniqueId}" class="flex justify-between items-center p-4 cursor-pointer hover:bg-gray-50 transition-colors"><div class="flex items-center gap-3"><p class="font-semibold text-gray-800">${taskTitle}</p>${module ? `<span class="text-xs font-semibold bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full">${module}</span>` : ''}</div><svg class="task-toggle-icon w-5 h-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" /></svg></div><div id="${uniqueId}" class="task-details-content bg-gray-50/70"><div class="p-5 text-sm"><div class="space-y-4"><div><p class="font-semibold mb-1">Zweck:</p><p class="text-gray-600">${taskDetails['Zweck (Originalbeschreibung)'] || 'N/A'}</p></div><div><p class="font-semibold mb-1">Grundidee:</p><p class="text-gray-600">${taskDetails['Grundidee (Originalbeschreibung)'] || 'N/A'}</p></div>${results.size > 0 ? `<div><p class="font-semibold mb-1">Erzeugt Ergebnisse:</p><ul class="list-disc list-inside text-gray-500">${[...results].sort().map(r => `<li><button class="text-left text-blue-600 hover:underline" data-action="show-result-details" data-result-name="${r}">${r}</button></li>`).join('')}</ul></div>` : ''}</div>${involvedRoles.size > 0 ? `<div class="border-t pt-4 mt-4"><h5 class="text-xs font-bold text-gray-500 mb-2">Beteiligte Rollen</h5><div class="flex flex-wrap gap-x-4 gap-y-2">${ROLE_ORDER.filter(r => involvedRoles.has(r)).map(r => `<span class="flex items-center text-sm"><span class="mr-2">${roleIcons[r] || '👤'}</span>${r}</span>`).join('')}</div></div>` : ''}</div></div></div>`;
+                    });
+                    taskListHtml += `</div>`;
+                } else {
+                        taskListHtml = `<p class="text-center text-gray-500">Für die Rolle "${roleId}" sind in der Phase "${phaseId}" keine Hauptaufgaben definiert.</p>`;
+                }
+                
+                dom.roleTaskListContainer.innerHTML = taskListHtml;
+            }
+            
+            function renderModulesSection() {
+                const activeModules = new Set();
+                scenarioData.forEach(item => Object.keys(item).forEach(key => { if (key.startsWith('Modul:') && item[key] === 'x') activeModules.add(key.replace('Modul: ', '').trim()); }));
+                const sortedModules = MODULE_ORDER.filter(m => activeModules.has(m));
+                dom.factorsOverview.innerHTML = sortedModules.map(moduleName => {
+                    const module = ModulData.find(m => m.Modul === moduleName);
+                    if(!module) return '';
+                    
+                    const isRelevantInFocus = !activeFocusRole || scenarioData.some(item =>
+                        item.Typ === 'Aufgabe' &&
+                        item[`Modul: ${moduleName}`] === 'x' &&
+                        checkItemRole(item, activeFocusRole)
+                    );
+                    const extraClasses = isRelevantInFocus ? '' : 'opacity-30 pointer-events-none';
+
+                    return `<button class="factor-btn content-card p-6 text-left w-full h-full transition-opacity ${extraClasses}" data-factor="${module.Modul}"><div class="flex items-center mb-3"><div class="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center text-2xl mr-4">${moduleIcons[module.Modul] || '🧩'}</div><h3 class="font-bold text-lg text-[#5F8670]">${module.Modul}</h3></div><p class="text-gray-600 text-sm">${module.Zweck}</p></button>`;
+                }).join('');
+            }
+            
+            function showModuleDetails(moduleId) {
+                const data = ModulData.find(m => m.Modul === moduleId);
+                if (!data) return;
+                const tasksInModule = scenarioData.filter(item => item.Typ === 'Aufgabe' && item[`Modul: ${moduleId}`] === 'x');
+                const uniqueTasks = [...new Map(tasksInModule.map(item => [item.Titel, item])).values()];
+                const roleCounts = {};
+                uniqueTasks.forEach(task => { Object.keys(task).forEach(key => { if (key.startsWith('Rolle:') && task[key] === 'v') { const roleName = key.replace('Rolle: ', '').trim(); if(responsibleRoles.has(roleName)) { roleCounts[roleName] = (roleCounts[roleName] || 0) + 1; } } }); });
+                const sortedRoles = Object.entries(roleCounts).sort((a, b) => b[1] - a[1]);
+                let detailsHtml = `<div class="content-card p-6 md:p-8"><div class="flex justify-between items-start mb-6"><div><div class="flex items-center mb-2"><span class="text-3xl mr-3">${moduleIcons[data.Modul] || '🧩'}</span><h3 class="text-2xl md:text-3xl font-bold text-[#5F8670]">${data.Modul}</h3></div></div><button id="close-factor-details" class="bg-gray-100 text-gray-700 font-semibold py-2 px-4 rounded-lg hover:bg-gray-200">Zurück</button></div><div class="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-8"><div><h4 class="font-bold text-lg mb-2 text-gray-800">Zweck</h4><p class="text-gray-600 mb-6 prose max-w-none">${data.Zweck}</p><h4 class="font-bold text-lg mb-2 text-gray-800">Kernaufgaben in diesem Szenario</h4>${uniqueTasks.length > 0 ? `<ul class="space-y-2 list-disc list-inside">${uniqueTasks.map(task => `<li><button data-action="showDetail" data-id="${task['NR-ID']}" class="text-blue-600 hover:underline text-left">${task.Titel}</button></li>`).join('')}</ul>` : '<p class="text-gray-500 text-sm">Für dieses Szenario sind keine spezifischen Kernaufgaben in diesem Modul definiert.</p>'}</div><div><h4 class="font-bold text-lg mb-3 text-gray-800">Hauptverantwortliche Rollen</h4>${sortedRoles.length > 0 ? `<div class="relative h-64"><canvas id="moduleRoleChart"></canvas></div>` : '<p class="text-gray-500 text-sm">Keine direkten Rollen-Verantwortlichkeiten für die Aufgaben in diesem Modul gefunden.</p>'}</div></div></div>`;
+                dom.factorDetailsContent.innerHTML = detailsHtml;
+                dom.factorsOverview.classList.add('hidden');
+                dom.factorDetailsContent.classList.remove('hidden');
+                document.getElementById('close-factor-details').addEventListener('click', () => { dom.factorDetailsContent.classList.add('hidden'); dom.factorsOverview.classList.remove('hidden'); dom.factorsOverview.querySelectorAll('.factor-btn').forEach(btn => btn.classList.remove('active')); }, { once: true });
+                if (sortedRoles.length > 0) { const chartCanvas = document.getElementById('moduleRoleChart'); if (chartCanvas) { new Chart(chartCanvas.getContext('2d'), { type: 'bar', data: { labels: sortedRoles.map(r => r[0]), datasets: [{ label: 'Anzahl Aufgaben', data: sortedRoles.map(r => r[1]), backgroundColor: '#a7f3d0', borderColor: '#059669', borderWidth: 1 }] }, options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true, ticks: { stepSize: 1 } } } } }); } }
+            }
+            
+            function renderDocFlowSelector() {
+                const relevantDocIds = new Set();
+                scenarioData.forEach(item => { if (item.Grundlage) { item.Grundlage.split('/').forEach(id => relevantDocIds.add(id.trim())); } if (item.Ergebnis) { item.Ergebnis.split('/').forEach(id => relevantDocIds.add(id.trim())); } });
+                let relevantDocs = DokumentData.filter(doc => doc['NR-ID'].split('/').some(id => relevantDocIds.has(id)));
+                
+                if (activeFocusRole) {
+                    const roleDocIds = new Set();
+                    const scenarioTasksForRole = scenarioData.filter(item => item.Typ === 'Aufgabe' && checkItemRole(item, activeFocusRole));
+                    scenarioTasksForRole.forEach(task => {
+                        task.Grundlage.split('/').forEach(id => { if (id) roleDocIds.add(id.trim()); });
+                        task.Ergebnis.split('/').forEach(id => { if (id) roleDocIds.add(id.trim()); });
+                    });
+                    relevantDocs = relevantDocs.filter(doc => doc['NR-ID'].split('/').some(id => roleDocIds.has(id.trim())));
+                }
+
+                const docOptions = [...new Set(relevantDocs.map(d => d.Dokument))].sort((a, b) => a.localeCompare(b));
+                dom.docFlowSelector.innerHTML = docOptions.map(docName => `<option value="${docName}">${docName}</option>`).join('');
+                updateDocFlowVisualizer(dom.docFlowSelector.value); // Wichtig: Visualisierung mit dem neuen (gefilterten) Wert aktualisieren
+            }
+
+            function updateDocFlowVisualizer(documentName) {
+                if (!documentName) { dom.docFlowVisualization.innerHTML = '<p class="text-center text-gray-500">Bitte wählen Sie ein Dokument aus oder es sind keine für den Fokus relevanten Dokumente vorhanden.</p>'; return; }
+                const docInfo = DokumentData.find(d => d.Dokument === documentName);
+                if (!docInfo) return;
+                const docIds = docInfo['NR-ID'].split('/');
+                const inputTasks = new Set(), outputTasks = new Set();
+                const scenarioTasks = scenarioData.filter(item => item.Typ === 'Aufgabe');
+                scenarioTasks.forEach(task => { const ergebnisIds = task.Ergebnis.split('/').map(s => s.trim()); const grundlageIds = task.Grundlage.split('/').map(s => s.trim()); if (docIds.some(id => ergebnisIds.includes(id))) inputTasks.add(task); if (docIds.some(id => grundlageIds.includes(id))) outputTasks.add(task); });
+                
+                const renderTaskList = (tasks) => { 
+                    if (tasks.size === 0) return '<p class="text-sm text-gray-500 mt-4 px-2">Keine Aufgaben in diesem Szenario gefunden.</p>'; 
+                    return `<div class="space-y-3 mt-4">${[...tasks].map(task => { 
+                        const phaseName = Object.keys(task).find(k => k.startsWith('Phase:') && task[k] === 'x')?.replace('Phase: ', '') || 'N/A'; 
+                        const responsibleRole = Object.keys(task).find(k => k.startsWith('Rolle:') && task[k] === 'v')?.replace('Rolle: ', '').trim() || 'N/A'; 
+                        const moduleName = Object.keys(task).find(k => k.startsWith('Modul:') && task[k] === 'x')?.replace('Modul: ', '') || 'N/A';
+                        const isRelevantInFocus = !activeFocusRole || checkItemRole(task, activeFocusRole);
+
+                        const participatingRoles = Object.keys(task)
+                            .filter(k => k.startsWith('Rolle:') && task[k] === 'b')
+                            .map(k => k.replace('Rolle: ', '').trim())
+                            .sort();
+                        
+                        let participatingRolesHtml = '';
+                        if (participatingRoles.length > 0) {
+                            participatingRolesHtml = `<p><strong>Beteiligt:</strong> ${participatingRoles.join(', ')}</p>`;
+                        }
+
+                        return `<div class="p-3 bg-white rounded-lg shadow-sm border border-gray-200 transition-opacity ${isRelevantInFocus ? '' : 'opacity-30'}">
+                                    <button data-action="showDetail" data-id="${task['NR-ID']}" class="w-full text-left font-semibold text-emerald-700 hover:underline">${task.Titel}</button>
+                                    <div class="mt-2 pt-2 border-t border-gray-100 text-xs text-gray-600 space-y-1">
+                                        <p><strong>Phase:</strong> ${phaseName}</p>
+                                        <p><strong>Verantwortlich:</strong> ${responsibleRole}</p>
+                                        ${participatingRolesHtml}
+                                        <p><strong>Modul:</strong> ${moduleName}</p>
+                                    </div>
+                                </div>`; 
+                    }).join('')}</div>`; 
+                };
+                dom.docFlowVisualization.innerHTML = `<div class="grid grid-cols-1 md:grid-cols-3 gap-8 items-start content-card p-6"><div class="text-center"><h3 class="text-lg font-bold text-gray-700 pb-2 border-b-2">Wird erzeugt durch:</h3>${renderTaskList(inputTasks)}</div><div class="text-center self-center my-6 md:my-0"><div class="p-6 bg-emerald-100 border-2 border-emerald-300 rounded-lg shadow-lg"><svg class="w-8 h-8 mx-auto mb-2 text-emerald-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" /></svg><p class="font-bold text-xl text-emerald-800">${documentName}</p></div></div><div class="text-center"><h3 class="text-lg font-bold text-gray-700 pb-2 border-b-2">Dient als Grundlage für:</h3>${renderTaskList(outputTasks)}</div></div>`;
+            }
+
+            function createGlossaryData() {
+                glossaryData = [];
+                RollenData.forEach(item => glossaryData.push({ title: item.Rolle, type: 'Rolle', description: item.Beschreibung }));
+                AufgabenData.forEach(item => glossaryData.push({ title: item.Aufgabe, type: 'Aufgabe', description: item['Zweck (Originalbeschreibung)'] }));
+                DokumentData.forEach(item => glossaryData.push({ title: item.Dokument, type: 'Dokument', description: item.Originalbeschreibung }));
+                ModulData.forEach(item => glossaryData.push({ title: item.Modul, type: 'Modul', description: item.Zweck }));
+                ZustaendeData.forEach(item => glossaryData.push({ title: item.Zustand, type: 'Zustand', description: item.Originalbeschreibung }));
+                PhasenData.forEach(item => glossaryData.push({ title: item.Phase, type: 'Phase', description: item.Beschreibung }));
+                glossaryData.sort((a,b) => a.title.localeCompare(b.title));
+            }
+            
+            function renderGlossary(searchTerm = '') {
+                const lowerCaseSearchTerm = searchTerm.toLowerCase();
+                const filteredData = searchTerm.length > 0 ? glossaryData.filter(item => item.title.toLowerCase().includes(lowerCaseSearchTerm)) : glossaryData;
+                const typeColors = { 'Rolle': 'bg-blue-100 text-blue-800', 'Aufgabe': 'bg-orange-100 text-orange-800', 'Dokument': 'bg-indigo-100 text-indigo-800', 'Modul': 'bg-yellow-100 text-yellow-800', 'Zustand': 'bg-cyan-100 text-cyan-800', 'Phase': 'bg-pink-100 text-pink-800' };
+                let html = '';
+                if (filteredData.length > 0) {
+                    html = '<div class="border border-gray-200 rounded-lg shadow-sm">';
+                    filteredData.forEach((item, index) => { const uniqueId = `glossary-item-${index}`; html += `<div class="glossary-item border-b last:border-b-0 border-gray-200"><div data-action="toggle-glossary-item" data-target="${uniqueId}" class="flex justify-between items-center p-4 cursor-pointer hover:bg-gray-50 transition-colors"><div class="flex items-center gap-3"><p class="font-semibold text-gray-800">${item.title}</p><span class="text-xs font-medium px-2.5 py-0.5 rounded-full ${typeColors[item.type] || 'bg-gray-100 text-gray-800'}">${item.type}</span></div><svg class="glossary-toggle-icon w-5 h-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" /></svg></div><div id="${uniqueId}" class="glossary-item-content bg-gray-50/70"><div class="p-5 text-sm text-gray-700">${item.description}</div></div></div>`; });
+                    html += '</div>';
+                } else { html = `<p class="text-center text-gray-500">Keine Ergebnisse für "${searchTerm}" gefunden.</p>`; }
+                dom.glossaryResults.innerHTML = html;
+            }
+            
+            function initSimulation() {
+                const simSteps = [ { id: 'sim-init', info: '<strong>Schritt 1:</strong> Das Projekt startet mit der Initialisierungsphase.' }, { id: 'sim-arrow-1', info: '...' }, { id: 'sim-konzept', info: '<strong>Schritt 2:</strong> In der Konzeptphase wird die übergeordnete Vision erarbeitet.' }, { id: 'sim-arrow-2', info: '...' }, { id: 'sim-unit-a', info: '<strong>Schritt 3:</strong> Die erste Realisierungseinheit startet.' }, { id: 'sim-unit-b', info: '<strong>Schritt 4:</strong> Die zweite Einheit folgt.' }, { id: 'sim-unit-c', info: '<strong>Schritt 5:</strong> Weitere Einheiten werden umgesetzt.' }, { id: 'sim-arrow-3', info: '...' }, { id: 'sim-abschluss', info: '<strong>Schritt 6:</strong> In der Abschlussphase wird das Gesamtprojekt beendet.' } ];
+                let currentSimStep = 0;
+                function updateSimView(stepIndex) { simSteps.forEach((step, index) => { const el = document.getElementById(step.id); if(!el) return; if (index <= stepIndex) { el.classList.remove('opacity-20', 'opacity-0'); el.classList.add('opacity-100'); } else { el.classList.add('opacity-20'); if(step.id.includes('arrow')) el.classList.add('opacity-0'); } }); dom.simInfo.innerHTML = simSteps[stepIndex].info; dom.simPrevBtn.disabled = stepIndex === 0; dom.simPrevBtn.classList.toggle('opacity-50', stepIndex === 0); dom.simNextBtn.disabled = stepIndex === simSteps.length - 1; dom.simNextBtn.classList.toggle('opacity-50', stepIndex === simSteps.length - 1); }
+                 dom.simNextBtn.onclick = () => { if (currentSimStep < simSteps.length - 1) updateSimView(++currentSimStep); };
+                 dom.simPrevBtn.onclick = () => { if (currentSimStep > 0) updateSimView(--currentSimStep); };
+                 updateSimView(0);
+            }
+            
+            function initComplexTimeline() {
+                const relevantRoles = ROLE_ORDER.filter(r => activeRoles.has(r));
+                
+                if (activeFocusRole && relevantRoles.includes(activeFocusRole)) {
+                    activeTimelineRoles = [activeFocusRole];
+                } else {
+                    activeTimelineRoles = [];
+                }
+
+                dom.complexRoleButtons.innerHTML = relevantRoles.map(role => 
+                    `<button class="toggle-btn bg-white font-semibold py-2 px-4 rounded-full shadow-sm text-sm ${activeTimelineRoles.includes(role) ? 'active' : ''}" data-role-timeline="${role}">${roleIcons[role] || '👤'} ${role}</button>`
+                ).join('');
+                
+                renderComplexTimeline();
+            }
+
+            function renderComplexTimeline(unitDetailView = null) {
+                const PHASEN_CONFIG_COMPLEX = { Initialisierung: { title: 'Initialisierung', width: 'w-64' }, Konzept: { title: 'Konzept', width: 'w-64' }, Realisierungseinheiten: { title: 'Realisierungseinheiten', width: 'w-[40rem]' }, Abschluss: { title: 'Abschluss', width: 'w-64' } };
+                const boardHtml = Object.entries(PHASEN_CONFIG_COMPLEX).map(([phaseKey, config]) => { let content = ''; if (phaseKey === 'Realisierungseinheiten') { content = unitDetailView || `<p class="text-sm text-gray-500 p-2">Klicken Sie auf eine Einheit, um ein beispielhaftes Vorgehen zu sehen.</p><div class="grid grid-cols-12 gap-x-2 gap-y-4 p-2"><button class="unit-box p-4 rounded-lg shadow-sm text-center font-semibold col-start-1 col-end-5 cursor-pointer" data-action="showUnitDetail" data-unit-name="A">Einheit A</button><button class="unit-box p-4 rounded-lg shadow-sm text-center font-semibold col-start-5 col-end-9 cursor-pointer" data-action="showUnitDetail" data-unit-name="B">Einheit B</button><button class="unit-box p-4 rounded-lg shadow-sm text-center font-semibold col-start-9 col-end-13 cursor-pointer" data-action="showUnitDetail" data-unit-name="C">Einheit C</button><button class="unit-box p-4 rounded-lg shadow-sm text-center font-semibold col-start-1 col-end-9 cursor-pointer mt-4" data-action="showUnitDetail" data-unit-name="D">Einheit D</button><button class="unit-box p-4 rounded-lg shadow-sm text-center font-semibold col-start-1 col-end-13 cursor-pointer mt-4" data-action="showUnitDetail" data-unit-name="E">Einheit E</button></div>`; } else { let roleContent = ''; activeTimelineRoles.forEach(role => { const items = scenarioData.filter(item => (item.Typ === 'Aufgabe' || item.Typ === 'Dokument' || item.Typ === 'Zustand') && item[`Phase: ${phaseKey}`] === 'x' && checkItemRole(item, role)); if (items.length > 0) { let itemsHtml = ''; const aufgaben = items.filter(i => i.Typ === 'Aufgabe'); const dokumente = items.filter(i => i.Typ === 'Dokument'); const zustande = items.filter(i => i.Typ === 'Zustand'); if (activeTimelineFilters.has('aufgaben') && aufgaben.length > 0) itemsHtml += [...new Set(aufgaben.map(i => i['NR-ID']))].map(id => aufgaben.find(i => i['NR-ID'] === id)).map(createItemCard).join(''); if (activeTimelineFilters.has('dokumente') && dokumente.length > 0) itemsHtml += [...new Set(dokumente.map(i => i['NR-ID']))].map(id => dokumente.find(i => i['NR-ID'] === id)).map(createItemCard).join(''); if (activeTimelineFilters.has('zustande') && zustande.length > 0) itemsHtml += [...new Set(zustande.map(i => i['NR-ID']))].map(id => zustande.find(i => i['NR-ID'] === id)).map(createItemCard).join(''); if (itemsHtml) roleContent += `<div class="mt-2 first:mt-0"><h4 class="font-semibold text-sm mb-2 text-gray-600">${roleIcons[role] || '👤'} ${role}</h4><div class="space-y-1">${itemsHtml}</div></div>`; } }); content += roleContent; } return `<div class="timeline-column ${config.width} h-full flex-shrink-0 active" data-phase="${phaseKey}"><button class="w-full text-left p-3 font-bold bg-gray-100 rounded-t-lg text-gray-700 sticky top-0 z-10" data-action="toggleColumn">${config.title}</button><div class="timeline-item-container p-2 space-y-2 bg-gray-50 rounded-b-lg h-full overflow-y-auto">${content || '<p class="text-xs text-center text-gray-400 p-4">Keine Aufgaben für aktuelle Auswahl.</p>'}</div></div>`; }).join('');
+                dom.timelineWrapper.innerHTML = `<div id="timeline-board" class="flex space-x-4 min-w-max h-[600px]">${boardHtml}</div>`;
+                if (activeTimelineRoles.length === 0) dom.timelineWrapper.innerHTML = `<div class="w-full h-full flex items-center justify-center text-gray-500">Bitte mindestens eine Rolle auswählen.</div>`;
+            }
+            
+            function initializeAndRenderAll() {
+                const [key, useRe] = dom.scenarioSelector.value.split('|');
+                currentScenarioKey = key;
+                useRealisierungseinheiten = (useRe === 'true');
+                if (useRealisierungseinheiten) currentVorgehen = 'klassisch'; 
+                toggleViewMode();
+                filterDataForScenario();
+                renderRoleFocusSelector(); // Muss nach filterData... aufgerufen werden
+                renderAllSections();
+            }
+
+            // --- EVENT LISTENERS ---
+            dom.scenarioSelector.addEventListener('change', initializeAndRenderAll);
+            dom.vorgehenKlassischBtn.addEventListener('click', () => { if(currentVorgehen !== 'klassisch') { currentVorgehen = 'klassisch'; initializeAndRenderAll(); } dom.vorgehenKlassischBtn.classList.add('active'); dom.vorgehenAgilBtn.classList.remove('active'); });
+            dom.vorgehenAgilBtn.addEventListener('click', () => { if(currentVorgehen !== 'agil') { currentVorgehen = 'agil'; initializeAndRenderAll(); } dom.vorgehenAgilBtn.classList.add('active'); dom.vorgehenKlassischBtn.classList.remove('active'); });
+            dom.docFlowSelector.addEventListener('change', (e) => updateDocFlowVisualizer(e.target.value));
+            dom.glossarySearch.addEventListener('input', (e) => renderGlossary(e.target.value));
+            
+            // NEUE EVENT LISTENERS FÜR FOKUS-MODUS
+            dom.roleFocusSelector.addEventListener('change', (e) => {
+                activeFocusRole = e.target.value || null;
+                dom.endFocusBtn.classList.toggle('hidden', !activeFocusRole);
+                renderAllSections(); // Neuaufbau aller Sektionen, um den Filter global anzuwenden
+            });
+            dom.endFocusBtn.addEventListener('click', () => {
+                activeFocusRole = null;
+                dom.roleFocusSelector.value = '';
+                dom.endFocusBtn.classList.add('hidden');
+                renderAllSections(); // Neuaufbau, um den Filter zu entfernen
+            });
+
+            // EVENT LISTENERS FÜR DIE TOUR
+            dom.tourNextBtn.addEventListener('click', () => { if (currentTourStepIndex === tourSteps.length - 1) { endTour(); } else { currentTourStepIndex++; renderCurrentTourStep(); } });
+            dom.tourPrevBtn.addEventListener('click', () => { if (currentTourStepIndex > 0) { currentTourStepIndex--; renderCurrentTourStep(); } });
+            dom.exitTourBtn.addEventListener('click', endTour);
+
+            document.body.addEventListener('click', e => {
+                const target = e.target.closest('[data-action], [data-tour-role-start], [data-role-details], [data-role-explorer-name], [data-role-timeline], [data-filter], .role-selector-btn, .factor-btn, .phase-button');
+                if (!target) return;
+
+                if (target.matches('[data-tour-role-start]')) { initiateTour(target.dataset.tourRoleStart); return; }
+                if (target.matches('[data-role-details]')) { showRoleDetails(target.dataset.roleDetails); return; }
+                if (target.matches('[data-role-explorer-name]')) {
+                    if (activeFocusRole) return; // Klicks im Fokus-Modus verhindern
+                    const clickedRoleName = target.dataset.roleExplorerName; 
+                    if (activeExplorerRole === clickedRoleName) { activeExplorerRole = null; showRoleExplorerDetails(null); } else { activeExplorerRole = clickedRoleName; showRoleExplorerDetails(clickedRoleName); } return; 
+                }
+                if (target.matches('[data-role-timeline]')) { target.classList.toggle('active'); activeTimelineRoles = [...dom.complexRoleButtons.querySelectorAll('.active')].map(btn => btn.dataset.roleTimeline); renderComplexTimeline(); return; }
+                if (target.matches('[data-filter]')) { target.classList.toggle('active'); const filter = target.dataset.filter; if (activeTimelineFilters.has(filter)) activeTimelineFilters.delete(filter); else activeTimelineFilters.add(filter); renderComplexTimeline(); return; }
+                if (target.matches('.role-selector-btn')) { updateTaskDistribution(target.dataset.role); return; }
+                if (target.matches('.factor-btn')) { document.querySelectorAll('.factor-btn').forEach(b => b.classList.remove('active')); target.classList.add('active'); showModuleDetails(target.dataset.factor); return; }
+                if (target.matches('.phase-button') && !target.disabled) { renderPhaseDetails(target.dataset.phase); return; }
+
+                const action = target.dataset.action;
+                if (!action) return;
+                e.preventDefault();
+                switch (action) {
+                    case 'toggle-glossary-item': 
+                    case 'toggle-task-details': { const detailsDiv = document.getElementById(target.dataset.target); const icon = target.querySelector('.task-toggle-icon, .glossary-toggle-icon'); if (detailsDiv) detailsDiv.classList.toggle('open'); if (icon) icon.classList.toggle('open'); break; }
+                    case 'show-result-details': { const item = DokumentData.find(d => d.Dokument === target.dataset.resultName) || ZustaendeData.find(z => z.Zustand === target.dataset.resultName); if (item) { dom.genericModalTitle.textContent = item.Dokument || item.Zustand; dom.genericModalDescription.textContent = item.Originalbeschreibung; dom.genericModal.classList.remove('hidden'); } break; }
+                    case 'toggleColumn': { target.closest('.timeline-column').classList.toggle('active'); break; }
+                    case 'showDetail': { const itemId = target.dataset.id; const itemData = rawQuizData.find(d => d['NR-ID'] === itemId); const details = AufgabenData.find(d => d['Nr-ID'] === itemId) || DokumentData.find(d => d['NR-ID'].includes(itemId)) || ZustaendeData.find(d => d['Nr-ID'] === itemId); if (itemData && details) { dom.genericModalTitle.textContent = itemData.Titel; let desc = (details?.Originalbeschreibung || (details && details['Zweck (Originalbeschreibung)']) || 'Keine Detailbeschreibung verfügbar.'); if (details && details['Grundidee (Originalbeschreibung)']) { desc += `\n\nGrundidee: ${details['Grundidee (Originalbeschreibung)']}`; } dom.genericModalDescription.textContent = desc; dom.genericModal.classList.remove('hidden'); } break; }
+                    case 'showUnitDetail': { const unitName = target.dataset.unitName; let detailHtml = `<div class="bg-white p-4 rounded-lg border-2 border-emerald-400"><div class="flex justify-between items-center mb-2"><h4 class="font-bold text-emerald-800">Detail: Beispiel-Einheit ${unitName}</h4><button class="text-sm text-emerald-600 hover:underline" data-action="backToUnits">Zurück zur Übersicht</button></div><p class="text-xs text-gray-500 mb-4">Jede Einheit durchläuft die Phasen Realisierung und Einführung.</p><div class="flex space-x-4">`; ['Realisierung', 'Einführung'].forEach(phaseKey => { let phaseContent = ''; activeTimelineRoles.forEach(role => { const items = scenarioData.filter(item => item[`Phase: ${phaseKey}`] === 'x' && checkItemRole(item, role)); if(items.length > 0) { const aufgaben = items.filter(i => i.Typ === 'Aufgabe'); const dokumente = items.filter(i => i.Typ === 'Dokument'); const zustande = items.filter(i => i.Typ === 'Zustand'); let itemsHtml = ''; if (activeTimelineFilters.has('aufgaben') && aufgaben.length > 0) itemsHtml += [...new Set(aufgaben.map(i=>i['NR-ID']))].map(id=>aufgaben.find(i=>i['NR-ID']===id)).map(createItemCard).join(''); if (activeTimelineFilters.has('dokumente') && dokumente.length > 0) itemsHtml += [...new Set(dokumente.map(i=>i['NR-ID']))].map(id=>dokumente.find(i=>i['NR-ID']===id)).map(createItemCard).join(''); if (activeTimelineFilters.has('zustande') && zustande.length > 0) itemsHtml += [...new Set(zustande.map(i=>i['NR-ID']))].map(id=>zustande.find(i=>i['NR-ID']===id)).map(createItemCard).join(''); if(itemsHtml) phaseContent += `<div class="mt-2"><h4 class="font-semibold text-sm mb-2 text-gray-600">${roleIcons[role] || '👤'} ${role}</h4><div class="space-y-1">${itemsHtml}</div></div>`; } }); detailHtml += `<div class="w-1/2 bg-gray-50 p-2 rounded"><h5 class="font-semibold text-center text-sm mb-2">${phaseKey}</h5>${phaseContent || '<p class="text-xs text-center text-gray-400 p-4">Keine Aufgaben für aktuelle Auswahl.</p>'}</div>`; }); detailHtml += `</div></div>`; renderComplexTimeline(detailHtml); break; }
+                    case 'backToUnits': { renderComplexTimeline(); break; }
+                }
+            });
+
+            dom.closeGenericModal.addEventListener('click', () => dom.genericModal.classList.add('hidden'));
+            dom.genericModal.addEventListener('click', (e) => { if (e.target === dom.genericModal) dom.genericModal.classList.add('hidden'); });
+
+            // --- INITIAL LOAD ---
+            (function setupInitialScenarioSelector() { const selector = dom.scenarioSelector; const szenarioKeys = Object.keys(rawQuizData[0]).filter(k => k.startsWith('Szenario:')); szenarioKeys.forEach(key => { const name = key.replace('Szenario: ', ''); if (name === 'Organisationsanpassung') { selector.appendChild(new Option(name, `${key}|false`)); selector.appendChild(new Option(`${name} mit Realisierungseinheiten`, `${key}|true`)); } else { selector.appendChild(new Option(name, `${key}|false`)); } }); })();
+            createGlossaryData();
+            dom.vorgehenKlassischBtn.classList.add('active');
+            initializeAndRenderAll();
+        });
+    </script>
+</body>
+</html>
