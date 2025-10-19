@@ -12,20 +12,16 @@
   ],
   "rewrites": [
     {
-      "source": "/navigator",
-      "destination": "https://hermes-navigator-904dsfnp9-swissfmprofessionals-projects.vercel.app"
-    },
-    {
-      "source": "/navigator/:path*",
-      "destination": "https://hermes-navigator-904dsfnp9-swissfmprofessionals-projects.vercel.app/:path*"
-    },
-    {
-      "source": "/zusammenhaenge",
-      "destination": "https://hermes-zusammenhaenge-9t1ls9tkz-swissfmprofessionals-projects.vercel.app"
+      "source": "/:path((?!zusammenhaenge).*)",
+      "destination": "https://hermes-navigator-904dsfnp9-swissfmprofessionals-projects.vercel.app/:path"
     },
     {
       "source": "/zusammenhaenge/:path*",
       "destination": "https://hermes-zusammenhaenge-9t1ls9tkz-swissfmprofessionals-projects.vercel.app/:path*"
+    },
+    {
+       "source": "/zusammenhaenge",
+       "destination": "https://hermes-zusammenhaenge-9t1ls9tkz-swissfmprofessionals-projects.vercel.app"
     }
-  ]
+ ]
 }
