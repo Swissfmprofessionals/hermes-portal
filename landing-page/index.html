@@ -29,6 +29,62 @@
         }
     </style>
 
+    <script>
+        //
+        // HIER IHREN PUBLISHABLE KEY (pk_live_...) EINFÜGEN:
+        //
+        const clerkPublishableKey = "pk_live_Y2xlcmsuaGVybWVzLnN3aXNmbXByb2Zlc3Npb25hbHMuY2gk";
+        //
+        //
+
+        // === FINGER WEG VON HIER UNTEN ===
+        try {
+            const script = document.createElement("script");
+            script.setAttribute("data-clerk-publishable-key", clerkPublishableKey);
+            script.async = true;
+            script.type = "text/javascript";
+            // Lädt das Skript von Ihrer benutzerdefinierten Clerk-Domain (für Secondary App auf hermes Subdomain)
+            script.src = `https://clerk.hermes.swissfmprofessionals.ch/clerk.browser.js`;
+
+            script.onload = () => {
+                if (!window.Clerk) {
+                    console.error("Clerk-Objekt nicht gefunden nach Laden des Skripts.");
+                    return;
+                }
+                window.Clerk.load()
+                    .then(() => {
+                        // Stoppe, falls die Seite in einem iFrame geladen wird
+                        if (window.Clerk.handleRedirectInIframe) {
+                             try { window.Clerk.handleRedirectInIframe(); return; } catch (e) { /* ignore */ }
+                        }
+
+                        // Wenn der Benutzer NICHT eingeloggt ist UND wir uns nicht schon auf einer Clerk-Seite befinden
+                        if (!window.Clerk.user && !window.location.hostname.startsWith('accounts.hermes.')) {
+                            console.log("Benutzer nicht eingeloggt. Leite zu Clerk weiter...");
+                            // Leitet zur Login-Seite auf Ihrer benutzerdefinierten Clerk-Domain weiter
+                            const signInUrl = "https://accounts.hermes.swissfmprofessionals.ch/sign-in";
+                            const redirectUrl = encodeURIComponent(window.location.href);
+                            window.location.href = `${signInUrl}?redirect_url=${redirectUrl}`;
+                        } else if (window.Clerk.user) {
+                            console.log("Benutzer ist eingeloggt:", window.Clerk.user.id);
+                        }
+                    })
+                    .catch((error) => {
+                        console.error("Fehler beim Initialisieren von Clerk:", error);
+                    });
+            };
+
+            script.onerror = (event) => {
+                 console.error("Clerk Skript konnte nicht geladen werden. Prüfen Sie CNAMEs (clerk.hermes...) und Clerk-Konfiguration:", event);
+                 // Optional: Fehlermeldung für den Benutzer anzeigen
+                 // document.body.innerHTML = '<div style="padding: 20px; text-align: center; color: red;">Authentifizierungsdienst konnte nicht geladen werden. Bitte versuchen Sie es später erneut.</div>';
+            };
+
+            document.head.appendChild(script);
+        } catch (e) {
+            console.error("Generischer Fehler beim Einbinden des Clerk-Skripts:", e);
+        }
+    </script>
     </head>
 <body class="antialiased">
 
@@ -147,5 +203,6 @@
 
 </body>
 </html>
+
 
 
