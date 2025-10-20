@@ -4,17 +4,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>HERMES 22 - Projektmanagement-verstehen</title>
-    
+
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
     <style>
-        body { 
-            font-family: 'Inter', sans-serif; 
-            background-color: #F8F5F2; 
-            color: #4A4A4A; 
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #F8F5F2;
+            color: #4A4A4A;
         }
         .hero-section {
             background-color: #5F8670;
@@ -29,54 +29,6 @@
         }
     </style>
 
-    <script>
-        // 
-        // HIER IHREN PUBLISHABLE KEY EINFÜGEN:
-        // 
-        const clerkPublishableKey = "pk_live_Y2xlcmsuc3dpc3NmbXByb2Zlc3Npb25hbHMuY2gk";
-        //
-        //
-
-        const script = document.createElement("script");
-        script.setAttribute("data-clerk-publishable-key", clerkPublishableKey);
-        script.async = true;
-        script.type = "text/javascript";
-        
-        // Dieses Script lädt von der "Frontend API" Domain, die Sie in Clerk (Phase 3 / image_f29fbe.png) 
-        // mit dem CNAME 'clerk' -> 'frontend-api.clerk.services' konfiguriert haben.
-        script.src = `https://clerk.swissfmprofessionals.ch/clerk.browser.js`;
-
-        script.onload = () => {
-            window.Clerk.load()
-                .then(() => {
-                    // Stoppe, falls die Seite in einem iFrame geladen wird (z.B. in Vercel-Previews)
-                    if (window.Clerk.handleRedirectInIframe) {
-                        window.Clerk.handleRedirectInIframe();
-                        return;
-                    }
-
-                    // Wenn der Benutzer NICHT eingeloggt ist...
-                    if (!window.Clerk.user) {
-                        
-                        // ...leite ihn zur Login-Seite weiter (die Sie als 'accounts' CNAME konfiguriert haben)
-                        // Wir hängen die aktuelle URL an, damit er nach dem Login hierher zurückkommt.
-                        const signInUrl = "https://accounts.swissfmprofessionals.ch/sign-in";
-                        const redirectUrl = encodeURIComponent(window.location.href);
-                        window.location.href = `${signInUrl}?redirect_url=${redirectUrl}`;
-                    }
-                })
-                .catch((error) => {
-                    console.error("Clerk error:", error);
-                });
-        };
-        
-        script.onerror = () => {
-             console.error("Clerk script failed to load.");
-        };
-
-        // Fügt das Script zum <head> hinzu, um die Seite zu schützen
-        document.head.appendChild(script);
-    </script>
     </head>
 <body class="antialiased">
 
@@ -119,7 +71,7 @@
                     <h2 class="text-3xl md:text-4xl font-bold text-gray-800">Das HERMES Modell im Überblick</h2>
                     <p class="max-w-3xl mx-auto text-lg text-gray-600 mt-4">Die Methode liefert vordefinierte Bausteine, die für jedes Projekt per Sizing und Tailoring individuell angepasst werden können.</p>
                 </div>
-                
+
                 <div class="grid md:grid-cols-2 gap-12 items-center max-w-6xl mx-auto">
                     <div class="bg-white p-6 rounded-xl shadow-md border border-gray-200">
                         <img src="hermes-modell-ueberblick.jpg" alt="Diagramm des HERMES 22 Modells mit den Elementen Szenario, Phasen, Module und Rollen, die um das zentrale Tailoring angeordnet sind.">
@@ -195,4 +147,5 @@
 
 </body>
 </html>
+
 
