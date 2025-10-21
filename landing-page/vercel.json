@@ -13,11 +13,11 @@
   "rewrites": [
     {
       "source": "/navigator",
-      "destination": "https://hermes-navigator-904dsfnp9-swissfmprofessionals-projects.vercel.app"
+      "destination": "https://hermes-navigator-91knu8p9y-swissfmprofessionals-projects.vercel.app"
     },
     {
       "source": "/navigator/:path*",
-      "destination": "https://hermes-navigator-904dsfnp9-swissfmprofessionals-projects.vercel.app/:path*"
+      "destination": "https://hermes-navigator-91knu8p9y-swissfmprofessionals-projects.vercel.app/:path*"
     },
     {
       "source": "/zusammenhaenge",
@@ -29,4 +29,5 @@
     }
   ]
 }
+
 
