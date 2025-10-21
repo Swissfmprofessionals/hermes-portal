@@ -21,13 +21,14 @@
     },
     {
       "source": "/zusammenhaenge",
-      "destination": "https://hermes-zusammenhaenge-9t1ls9tkz-swissfmprofessionals-projects.vercel.app"
+      "destination": "https://hermes-zusammenhaenge-1pzhfdil0-swissfmprofessionals-projects.vercel.app"
     },
     {
       "source": "/zusammenhaenge/:path*",
-      "destination": "https://hermes-zusammenhaenge-9t1ls9tkz-swissfmprofessionals-projects.vercel.app/:path*"
+      "destination": "https://hermes-zusammenhaenge-1pzhfdil0-swissfmprofessionals-projects.vercel.app/:path*"
     }
   ]
 }
+
 
 
